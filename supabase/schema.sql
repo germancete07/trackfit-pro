@@ -1,10 +1,26 @@
 -- ============================================================
--- TrackFit Pro – Supabase Schema
--- Run this in the Supabase SQL Editor
+-- TrackFit Pro – Supabase Schema (idempotente – resetea todo)
 -- ============================================================
 
+-- ── Drop todo en orden inverso de dependencias ───────────────
+drop trigger if exists on_video_correction_update on public.video_corrections;
+drop trigger if exists on_video_correction_insert on public.video_corrections;
+drop trigger if exists on_exercise_log_insert     on public.exercise_logs;
+drop trigger if exists on_auth_user_created        on auth.users;
+
+drop function if exists public.notify_student_on_review();
+drop function if exists public.notify_trainer_on_video();
+drop function if exists public.notify_trainer_on_log();
+drop function if exists public.handle_new_user();
+
+drop table if exists public.notifications       cascade;
+drop table if exists public.video_corrections   cascade;
+drop table if exists public.exercise_logs       cascade;
+drop table if exists public.exercises           cascade;
+drop table if exists public.sessions            cascade;
+drop table if exists public.profiles            cascade;
+
 -- ── Profiles ────────────────────────────────────────────────
--- Extends auth.users with role and trainer relationship
 create table public.profiles (
   id          uuid primary key references auth.users(id) on delete cascade,
   email       text not null,
@@ -23,16 +39,12 @@ create policy "Users can read own profile"
 
 create policy "Trainer can read their students"
   on public.profiles for select
-  using (
-    auth.uid() = trainer_id
-    or auth.uid() = id
-  );
+  using (auth.uid() = trainer_id or auth.uid() = id);
 
 create policy "Users can update own profile"
   on public.profiles for update
   using (auth.uid() = id);
 
--- Auto-create profile on signup
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
@@ -52,14 +64,14 @@ create trigger on_auth_user_created
 
 -- ── Sessions ────────────────────────────────────────────────
 create table public.sessions (
-  id          uuid primary key default gen_random_uuid(),
-  trainer_id  uuid not null references public.profiles(id) on delete cascade,
-  student_id  uuid not null references public.profiles(id) on delete cascade,
-  name        text not null,
+  id             uuid primary key default gen_random_uuid(),
+  trainer_id     uuid not null references public.profiles(id) on delete cascade,
+  student_id     uuid not null references public.profiles(id) on delete cascade,
+  name           text not null,
   scheduled_date date,
-  notes       text,
-  status      text not null default 'pending' check (status in ('pending','active','completed')),
-  created_at  timestamptz not null default now()
+  notes          text,
+  status         text not null default 'pending' check (status in ('pending','active','completed')),
+  created_at     timestamptz not null default now()
 );
 
 alter table public.sessions enable row level security;
@@ -72,13 +84,17 @@ create policy "Student reads own sessions"
   on public.sessions for select
   using (auth.uid() = student_id);
 
+create policy "Student updates own sessions"
+  on public.sessions for update
+  using (auth.uid() = student_id);
+
 -- ── Exercises ───────────────────────────────────────────────
 create table public.exercises (
   id             uuid primary key default gen_random_uuid(),
   session_id     uuid not null references public.sessions(id) on delete cascade,
   name           text not null,
   sets           integer not null default 3,
-  reps           text not null default '8-12',  -- e.g. "8-12" or "AMRAP"
+  reps           text not null default '8-12',
   rest_seconds   integer default 90,
   youtube_url    text,
   technical_note text,
@@ -108,15 +124,16 @@ create policy "Student reads exercises in own sessions"
 
 -- ── Exercise Logs ───────────────────────────────────────────
 create table public.exercise_logs (
-  id               uuid primary key default gen_random_uuid(),
-  exercise_id      uuid not null references public.exercises(id) on delete cascade,
-  student_id       uuid not null references public.profiles(id) on delete cascade,
-  session_id       uuid not null references public.sessions(id) on delete cascade,
-  weight_kg        numeric(6,2),
-  completed_sets   integer,
-  rpe              integer check (rpe between 1 and 10),
-  comment          text,
-  logged_at        timestamptz not null default now()
+  id             uuid primary key default gen_random_uuid(),
+  exercise_id    uuid not null references public.exercises(id) on delete cascade,
+  student_id     uuid not null references public.profiles(id) on delete cascade,
+  session_id     uuid not null references public.sessions(id) on delete cascade,
+  weight_kg      numeric(6,2),
+  completed_sets integer,
+  rpe            integer check (rpe between 1 and 10),
+  comment        text,
+  logged_at      timestamptz not null default now(),
+  unique (exercise_id, student_id)
 );
 
 alter table public.exercise_logs enable row level security;
@@ -154,7 +171,7 @@ create policy "Student manages own video corrections"
   on public.video_corrections for all
   using (auth.uid() = student_id);
 
-create policy "Trainer reads and updates corrections for their students"
+create policy "Trainer manages corrections for their students"
   on public.video_corrections for all
   using (auth.uid() = trainer_id);
 
@@ -162,29 +179,28 @@ create policy "Trainer reads and updates corrections for their students"
 create table public.notifications (
   id           uuid primary key default gen_random_uuid(),
   user_id      uuid not null references public.profiles(id) on delete cascade,
-  type         text not null, -- 'session_logged', 'correction_submitted', 'correction_reviewed'
+  type         text not null,
   message      text not null,
-  reference_id uuid,          -- session_id, correction_id, etc.
+  reference_id uuid,
   read         boolean not null default false,
   created_at   timestamptz not null default now()
 );
 
 alter table public.notifications enable row level security;
 
-create policy "Users read own notifications"
+create policy "Users manage own notifications"
   on public.notifications for all
   using (auth.uid() = user_id);
 
--- ── Notify trainer when student logs a session ──────────────
+-- ── Triggers de notificaciones ──────────────────────────────
 create or replace function public.notify_trainer_on_log()
 returns trigger language plpgsql security definer set search_path = public as $$
 declare
-  v_trainer_id uuid;
+  v_trainer_id  uuid;
   v_student_name text;
   v_session_name text;
 begin
-  select p.trainer_id, p.full_name
-    into v_trainer_id, v_student_name
+  select p.trainer_id, p.full_name into v_trainer_id, v_student_name
     from public.profiles p where p.id = new.student_id;
 
   select s.name into v_session_name
@@ -192,12 +208,9 @@ begin
 
   if v_trainer_id is not null then
     insert into public.notifications (user_id, type, message, reference_id)
-    values (
-      v_trainer_id,
-      'session_logged',
-      v_student_name || ' registró actividad en "' || v_session_name || '"',
-      new.session_id
-    );
+    values (v_trainer_id, 'session_logged',
+            v_student_name || ' registró actividad en "' || v_session_name || '"',
+            new.session_id);
   end if;
   return new;
 end;
@@ -207,7 +220,6 @@ create trigger on_exercise_log_insert
   after insert on public.exercise_logs
   for each row execute procedure public.notify_trainer_on_log();
 
--- ── Notify trainer when student submits a video correction ──
 create or replace function public.notify_trainer_on_video()
 returns trigger language plpgsql security definer set search_path = public as $$
 declare
@@ -217,12 +229,9 @@ begin
     from public.profiles where id = new.student_id;
 
   insert into public.notifications (user_id, type, message, reference_id)
-  values (
-    new.trainer_id,
-    'correction_submitted',
-    v_student_name || ' subió un video de "' || new.exercise_name || '" para corrección',
-    new.id
-  );
+  values (new.trainer_id, 'correction_submitted',
+          v_student_name || ' subió un video de "' || new.exercise_name || '" para corrección',
+          new.id);
   return new;
 end;
 $$;
@@ -231,18 +240,14 @@ create trigger on_video_correction_insert
   after insert on public.video_corrections
   for each row execute procedure public.notify_trainer_on_video();
 
--- ── Notify student when trainer responds ────────────────────
 create or replace function public.notify_student_on_review()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
   if new.status = 'reviewed' and old.status = 'pending' then
     insert into public.notifications (user_id, type, message, reference_id)
-    values (
-      new.student_id,
-      'correction_reviewed',
-      'Tu entrenador respondió la corrección de "' || new.exercise_name || '"',
-      new.id
-    );
+    values (new.student_id, 'correction_reviewed',
+            'Tu entrenador respondió la corrección de "' || new.exercise_name || '"',
+            new.id);
   end if;
   return new;
 end;
@@ -252,7 +257,7 @@ create trigger on_video_correction_update
   after update on public.video_corrections
   for each row execute procedure public.notify_student_on_review();
 
--- ── Indexes ─────────────────────────────────────────────────
+-- ── Índices ─────────────────────────────────────────────────
 create index on public.sessions (student_id);
 create index on public.sessions (trainer_id);
 create index on public.exercises (session_id);

@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-Process *)",
+      "PowerShell(Stop-Process *)",
+      "PowerShell(npm install *)",
+      "PowerShell(npx tsc --noEmit 2>&1 | Select-Object -First 30)",
+      "PowerShell(npm run *)",
+      "PowerShell(Start-Process \"http://localhost:3000\")",
+      "PowerShell(git status 2>&1; Write-Host \"---\"; \\(Get-Command gh -ErrorAction SilentlyContinue\\) | Select-Object -ExpandProperty Source; Write-Host \"---\"; \\(Get-Command vercel -ErrorAction SilentlyContinue\\) | Select-Object -ExpandProperty Source)",
+      "PowerShell(winget *)",
+      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\",\"User\"\\); & \"C:\\\\Program Files\\\\Git\\\\cmd\\\\git.exe\" --version)",
+      "PowerShell($git = \"C:\\\\Program Files\\\\Git\\\\cmd\\\\git.exe\"; Set-Location \"C:\\\\Users\\\\German PC\\\\trackfit-pro\"; & $git init; & $git add .; & $git commit -m \"Initial commit: TrackFit Pro - Next.js 14 + Supabase fitness tracker\")"
+    ]
+  }
+}

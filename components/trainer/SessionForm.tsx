@@ -26,14 +26,15 @@ const emptyExercise = (): ExerciseDraft => ({
 interface Props {
   trainerId: string;
   students: Student[];
+  defaultStudentId?: string;
 }
 
-export function SessionForm({ trainerId, students }: Props) {
+export function SessionForm({ trainerId, students, defaultStudentId }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const [studentId, setStudentId] = useState(students[0]?.id ?? "");
+  const [studentId, setStudentId] = useState(defaultStudentId ?? students[0]?.id ?? "");
   const [name, setName] = useState("");
   const [scheduledDate, setScheduledDate] = useState("");
   const [notes, setNotes] = useState("");

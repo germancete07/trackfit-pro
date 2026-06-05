@@ -38,7 +38,7 @@ export function StudentDashboard({ profile, sessions }: Props) {
       </div>
 
       {/* Quick actions */}
-      <Link href="/dashboard/corrections/new">
+      <Link href="/dashboard/corrections">
         <Card className="flex items-center gap-4 border-dashed border-2 border-brand-200 bg-brand-50/50 hover:border-brand-400 transition-colors" padding="md">
           <div className="h-10 w-10 rounded-xl bg-brand-100 flex items-center justify-center flex-shrink-0">
             <VideoIcon />

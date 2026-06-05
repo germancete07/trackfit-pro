@@ -7,6 +7,53 @@ export interface Profile {
   role: Role;
   trainer_id: string | null;
   avatar_url: string | null;
+  birth_date: string | null;
+  training_goal: string | null;
+  physical_limitations: string | null;
+  start_date: string | null;
+  trainer_notes: string | null;
+  archived: boolean;
+  reminder_hour: number | null;
+  space_name: string | null;
+  created_at: string;
+}
+
+export interface SessionTemplate {
+  id: string;
+  trainer_id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  template_exercises?: TemplateExercise[];
+}
+
+export interface TemplateExercise {
+  id: string;
+  template_id: string;
+  name: string;
+  sets: number;
+  reps: string;
+  rest_seconds: number | null;
+  youtube_url: string | null;
+  technical_note: string | null;
+  sort_order: number;
+}
+
+export interface Message {
+  id: string;
+  trainer_id: string;
+  student_id: string;
+  sender_id: string;
+  content: string;
+  read: boolean;
+  created_at: string;
+}
+
+export interface TrainingDay {
+  id: string;
+  student_id: string;
+  trainer_id: string;
+  day_of_week: number;
   created_at: string;
 }
 

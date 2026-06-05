@@ -1,4 +1,5 @@
 import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { formatDate } from "@/lib/utils";
 import type { Notification } from "@/lib/types";
 
@@ -33,9 +34,11 @@ export function NotificationsView({ notifications }: { notifications: Notificati
           ))}
         </div>
       ) : (
-        <Card padding="lg" className="text-center">
-          <p className="text-gray-400 text-sm">No tenés notificaciones.</p>
-        </Card>
+        <EmptyState
+          illustration="notifications"
+          title="Sin notificaciones"
+          description="Cuando tus alumnos entrenen o suban videos, te avisamos acá."
+        />
       )}
     </div>
   );

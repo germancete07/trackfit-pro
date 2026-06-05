@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { formatDate, getYoutubeThumbnail } from "@/lib/utils";
+import { SaveAsTemplateButton } from "@/components/trainer/SaveAsTemplateButton";
 import Image from "next/image";
 
 export default async function SessionDetailPage({ params }: { params: { id: string } }) {
@@ -49,10 +50,13 @@ export default async function SessionDetailPage({ params }: { params: { id: stri
         </Card>
       )}
 
-      {/* Quick action */}
-      <Link href={`/dashboard/students/${(session.student as any)?.id}/history`}>
-        <Button variant="secondary" size="sm" className="w-full">Ver historial de cargas</Button>
-      </Link>
+      {/* Quick actions */}
+      <div className="flex gap-2">
+        <Link href={`/dashboard/students/${(session.student as any)?.id}/history`} className="flex-1">
+          <Button variant="secondary" size="sm" className="w-full">Ver historial</Button>
+        </Link>
+        <SaveAsTemplateButton sessionId={session.id} sessionName={session.name} />
+      </div>
 
       {/* Exercises */}
       <div className="flex flex-col gap-3">

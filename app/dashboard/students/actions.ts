@@ -3,6 +3,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 
 export async function createStudentAction(formData: FormData) {
   const fullName = (formData.get("fullName") as string).trim();
@@ -15,19 +16,17 @@ export async function createStudentAction(formData: FormData) {
 
   const admin = createAdminClient();
 
-  // Crear usuario sin afectar la sesión actual del entrenador
   const { data, error } = await admin.auth.admin.createUser({
     email,
     password,
     email_confirm: true,
-    user_metadata: { role: "student" },
+    user_metadata: { role: "student", full_name: fullName, trainer_id: user.id },
   });
 
   if (error || !data.user) {
     return { error: error?.message ?? "Error al crear el usuario" };
   }
 
-  // Asignar nombre y entrenador
   const { error: profileErr } = await admin
     .from("profiles")
     .update({ full_name: fullName, trainer_id: user.id })
@@ -37,5 +36,85 @@ export async function createStudentAction(formData: FormData) {
     return { error: "Usuario creado pero no se pudo asignar el entrenador: " + profileErr.message };
   }
 
+  revalidatePath("/dashboard/students");
+  return { success: true };
+}
+
+export async function inviteStudentAction(formData: FormData) {
+  const fullName = (formData.get("fullName") as string).trim();
+  const email = (formData.get("email") as string).trim();
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const admin = createAdminClient();
+
+  const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
+    data: { role: "student", full_name: fullName, trainer_id: user.id },
+  });
+
+  if (error || !data.user) {
+    return { error: error?.message ?? "Error al enviar la invitacion" };
+  }
+
+  // The trigger creates the profile; update it with name and trainer
+  await admin
+    .from("profiles")
+    .update({ full_name: fullName, trainer_id: user.id })
+    .eq("id", data.user.id);
+
+  revalidatePath("/dashboard/students");
+  return { success: true };
+}
+
+export async function archiveStudentAction(studentId: string, archived: boolean) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("profiles")
+    .update({ archived })
+    .eq("id", studentId)
+    .eq("trainer_id", user.id);
+
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard/students");
+  revalidatePath(`/dashboard/students/${studentId}`);
+  return { success: true };
+}
+
+export async function updateStudentNotesAction(studentId: string, notes: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ trainer_notes: notes || null })
+    .eq("id", studentId)
+    .eq("trainer_id", user.id);
+
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
+export async function updateStudentProfileAction(studentId: string, data: {
+  start_date: string | null;
+}) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  const { error } = await supabase
+    .from("profiles")
+    .update(data)
+    .eq("id", studentId)
+    .eq("trainer_id", user.id);
+
+  if (error) return { error: error.message };
+  revalidatePath(`/dashboard/students/${studentId}`);
   return { success: true };
 }

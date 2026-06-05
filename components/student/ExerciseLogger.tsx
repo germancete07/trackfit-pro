@@ -10,6 +10,9 @@ import { Textarea } from "@/components/ui/Textarea";
 import { RPESlider } from "@/components/ui/RPESlider";
 import { Badge } from "@/components/ui/Badge";
 import { getYoutubeEmbedUrl } from "@/lib/utils";
+import { useToast } from "@/components/shared/ToastProvider";
+import { useTimer } from "@/components/shared/TimerContext";
+import { SessionComplete } from "@/components/student/SessionComplete";
 import type { Exercise, Session } from "@/lib/types";
 
 interface ExerciseWithLogs extends Exercise {
@@ -34,8 +37,11 @@ interface LogState {
 
 export function ExerciseLogger({ session, exercises, studentId }: Props) {
   const router = useRouter();
+  const { showToast } = useToast();
+  const { start: startTimer } = useTimer();
   const [activeIndex, setActiveIndex] = useState(0);
   const [expandedVideo, setExpandedVideo] = useState<string | null>(null);
+  const [showCelebration, setShowCelebration] = useState(false);
 
   const [logs, setLogs] = useState<Record<string, LogState>>(() => {
     const init: Record<string, LogState> = {};
@@ -83,6 +89,7 @@ export function ExerciseLogger({ session, exercises, studentId }: Props) {
     }, { onConflict: "exercise_id,student_id" });
 
     if (error) {
+      showToast("Error al guardar. Intentá de nuevo.", "error");
       updateLog(exercise.id, "error", "Error al guardar");
       updateLog(exercise.id, "saving", false);
     } else {
@@ -90,6 +97,7 @@ export function ExerciseLogger({ session, exercises, studentId }: Props) {
         ...prev,
         [exercise.id]: { ...prev[exercise.id], saved: true, saving: false, error: "" },
       }));
+      showToast(`${exercise.name} guardado`);
       if (activeIndex < exercises.length - 1) {
         setTimeout(() => setActiveIndex(activeIndex + 1), 300);
       }
@@ -97,20 +105,27 @@ export function ExerciseLogger({ session, exercises, studentId }: Props) {
   }
 
   const allSaved = exercises.every((ex) => logs[ex.id]?.saved);
+  const doneCount = exercises.filter((e) => logs[e.id]?.saved).length;
 
   async function finishSession() {
     const supabase = createClient();
     await supabase.from("sessions").update({ status: "completed" }).eq("id", session.id);
-    router.push("/dashboard");
-    router.refresh();
+    setShowCelebration(true);
   }
 
   const ex = exercises[activeIndex];
   const log = ex ? logs[ex.id] : null;
   const embedUrl = ex?.youtube_url ? getYoutubeEmbedUrl(ex.youtube_url) : null;
-  const doneCount = exercises.filter((e) => logs[e.id]?.saved).length;
 
   return (
+    <>
+    {showCelebration && (
+      <SessionComplete
+        sessionName={session.name}
+        exerciseCount={doneCount}
+        onFinish={() => { router.push("/dashboard"); router.refresh(); }}
+      />
+    )}
     <div className="px-4 py-5 flex flex-col gap-4">
       {/* Header */}
       <div>
@@ -275,6 +290,19 @@ export function ExerciseLogger({ session, exercises, studentId }: Props) {
               >
                 {log.saved ? "✓ Guardado · Modificar" : "Guardar"}
               </Button>
+
+              {log.saved && (
+                <button
+                  type="button"
+                  onClick={() => startTimer(ex.rest_seconds ?? 90)}
+                  className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-brand-50 border border-brand-100 text-sm font-semibold text-brand-600 hover:bg-brand-100 transition-colors"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Descanso {ex.rest_seconds ? `${ex.rest_seconds}s` : "90s"}
+                </button>
+              )}
             </Card>
 
             {/* Mobile prev/next */}
@@ -297,9 +325,10 @@ export function ExerciseLogger({ session, exercises, studentId }: Props) {
       {/* Finish */}
       {allSaved && (
         <Button size="lg" className="w-full md:max-w-sm md:mx-auto" onClick={finishSession}>
-          🎉 Finalizar sesión
+          Finalizar sesión
         </Button>
       )}
     </div>
+    </>
   );
 }

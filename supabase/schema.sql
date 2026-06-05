@@ -209,7 +209,7 @@ begin
   if v_trainer_id is not null then
     insert into public.notifications (user_id, type, message, reference_id)
     values (v_trainer_id, 'session_logged',
-            v_student_name || ' registró actividad en "' || v_session_name || '"',
+            v_student_name || ' registro actividad en "' || v_session_name || '"',
             new.session_id);
   end if;
   return new;
@@ -230,7 +230,7 @@ begin
 
   insert into public.notifications (user_id, type, message, reference_id)
   values (new.trainer_id, 'correction_submitted',
-          v_student_name || ' subió un video de "' || new.exercise_name || '" para corrección',
+          v_student_name || ' subio un video de "' || new.exercise_name || '" para correccion',
           new.id);
   return new;
 end;
@@ -246,7 +246,7 @@ begin
   if new.status = 'reviewed' and old.status = 'pending' then
     insert into public.notifications (user_id, type, message, reference_id)
     values (new.student_id, 'correction_reviewed',
-            'Tu entrenador respondió la corrección de "' || new.exercise_name || '"',
+            'Tu entrenador respondio la correccion de "' || new.exercise_name || '"',
             new.id);
   end if;
   return new;

@@ -7,16 +7,28 @@ export default async function NewSessionPage({ searchParams }: { searchParams: {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: students } = await supabase
-    .from("profiles")
-    .select("id, full_name, email")
-    .eq("trainer_id", user.id)
-    .order("full_name");
+  const [{ data: students }, { data: templates }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, full_name, email")
+      .eq("trainer_id", user.id)
+      .order("full_name"),
+    supabase
+      .from("session_templates")
+      .select("*, template_exercises(*)")
+      .eq("trainer_id", user.id)
+      .order("name"),
+  ]);
 
   return (
     <div className="px-4 py-5">
       <h1 className="text-xl font-black text-gray-900 mb-5">Nueva sesión</h1>
-      <SessionForm trainerId={user.id} students={students ?? []} defaultStudentId={searchParams.student} />
+      <SessionForm
+        trainerId={user.id}
+        students={students ?? []}
+        defaultStudentId={searchParams.student}
+        templates={templates as any ?? []}
+      />
     </div>
   );
 }

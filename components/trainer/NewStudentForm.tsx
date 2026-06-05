@@ -2,13 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createStudentAction } from "@/app/dashboard/students/actions";
+import { inviteStudentAction, createStudentAction } from "@/app/dashboard/students/actions";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 
+type Mode = "invite" | "direct";
+
 export function NewStudentForm({ trainerId }: { trainerId: string }) {
   const router = useRouter();
+  const [mode, setMode] = useState<Mode>("invite");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -19,7 +22,9 @@ export function NewStudentForm({ trainerId }: { trainerId: string }) {
     setLoading(true);
 
     const formData = new FormData(e.currentTarget);
-    const result = await createStudentAction(formData);
+    const result = mode === "invite"
+      ? await inviteStudentAction(formData)
+      : await createStudentAction(formData);
 
     if (result?.error) {
       setError(result.error);
@@ -27,50 +32,90 @@ export function NewStudentForm({ trainerId }: { trainerId: string }) {
       return;
     }
 
-    setSuccess("Alumno creado correctamente.");
-    setTimeout(() => router.push("/dashboard/students"), 1200);
+    const msg = mode === "invite"
+      ? "Invitacion enviada. El alumno recibira un email para crear su cuenta."
+      : "Alumno creado correctamente.";
+    setSuccess(msg);
+    setTimeout(() => router.push("/dashboard/students"), 1800);
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600">{error}</div>
-      )}
-      {success && (
-        <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-sm text-green-600">{success}</div>
-      )}
+    <div className="flex flex-col gap-4">
+      {/* Mode selector */}
+      <div className="flex bg-gray-100 rounded-xl p-1 gap-1">
+        <button
+          type="button"
+          onClick={() => { setMode("invite"); setError(""); }}
+          className={`flex-1 py-2 px-3 rounded-lg text-sm font-semibold transition-all ${
+            mode === "invite" ? "bg-white shadow-sm text-gray-900" : "text-gray-500"
+          }`}
+        >
+          Invitar por email
+        </button>
+        <button
+          type="button"
+          onClick={() => { setMode("direct"); setError(""); }}
+          className={`flex-1 py-2 px-3 rounded-lg text-sm font-semibold transition-all ${
+            mode === "direct" ? "bg-white shadow-sm text-gray-900" : "text-gray-500"
+          }`}
+        >
+          Crear con contraseña
+        </button>
+      </div>
 
-      <Card padding="md" className="flex flex-col gap-4">
-        <Input
-          label="Nombre completo"
-          name="fullName"
-          placeholder="Juan Pérez"
-          required
-          autoCapitalize="words"
-        />
-        <Input
-          label="Email"
-          name="email"
-          type="email"
-          placeholder="alumno@email.com"
-          required
-        />
-        <Input
-          label="Contraseña inicial"
-          name="password"
-          type="password"
-          placeholder="Mínimo 6 caracteres"
-          minLength={6}
-          required
-        />
-        <p className="text-xs text-gray-400">
-          El alumno podrá cambiar su contraseña desde su perfil.
-        </p>
-      </Card>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600">
+            {error}
+          </div>
+        )}
+        {success && (
+          <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-sm text-green-600">
+            {success}
+          </div>
+        )}
 
-      <Button type="submit" size="lg" loading={loading} className="w-full">
-        Crear alumno
-      </Button>
-    </form>
+        <Card padding="md" className="flex flex-col gap-4">
+          <Input
+            label="Nombre completo"
+            name="fullName"
+            placeholder="Juan Perez"
+            required
+            autoCapitalize="words"
+          />
+          <Input
+            label="Email"
+            name="email"
+            type="email"
+            placeholder="alumno@email.com"
+            required
+          />
+          {mode === "direct" && (
+            <>
+              <Input
+                label="Contraseña inicial"
+                name="password"
+                type="password"
+                placeholder="Minimo 6 caracteres"
+                minLength={6}
+                required
+              />
+              <p className="text-xs text-gray-400">
+                El alumno podra cambiar su contraseña desde su perfil.
+              </p>
+            </>
+          )}
+          {mode === "invite" && (
+            <p className="text-xs text-gray-400">
+              El alumno recibira un email con un link para configurar su contraseña y acceder a la app.
+            </p>
+          )}
+        </Card>
+
+        <Button type="submit" size="lg" loading={loading} className="w-full">
+          {mode === "invite" ? "Enviar invitacion" : "Crear alumno"}
+        </Button>
+      </form>
+    </div>
   );
 }

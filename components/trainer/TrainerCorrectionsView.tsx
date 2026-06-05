@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Textarea";
 import { formatDate } from "@/lib/utils";
+import { useToast } from "@/components/shared/ToastProvider";
+import { EmptyState } from "@/components/ui/EmptyState";
 import type { VideoCorrection } from "@/lib/types";
 
 type CorrectionWithStudent = Omit<VideoCorrection, "student"> & {
@@ -14,6 +16,8 @@ type CorrectionWithStudent = Omit<VideoCorrection, "student"> & {
 };
 
 export function TrainerCorrectionsView({ corrections }: { corrections: CorrectionWithStudent[] }) {
+  const { showToast } = useToast();
+  const [localCorrections, setLocalCorrections] = useState(corrections);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [responses, setResponses] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
@@ -24,18 +28,29 @@ export function TrainerCorrectionsView({ corrections }: { corrections: Correctio
 
     setSaving((p) => ({ ...p, [correction.id]: true }));
     const supabase = createClient();
-    await supabase
+    const { error } = await supabase
       .from("video_corrections")
       .update({ trainer_response: text, status: "reviewed", reviewed_at: new Date().toISOString() })
       .eq("id", correction.id);
 
     setSaving((p) => ({ ...p, [correction.id]: false }));
+    if (error) {
+      showToast("Error al enviar la corrección", "error");
+      return;
+    }
+    setLocalCorrections((prev) =>
+      prev.map((c) =>
+        c.id === correction.id
+          ? { ...c, status: "reviewed" as const, trainer_response: text, reviewed_at: new Date().toISOString() }
+          : c
+      )
+    );
     setExpanded(null);
-    window.location.reload();
+    showToast("Corrección enviada");
   }
 
-  const pending = corrections.filter((c) => c.status === "pending");
-  const reviewed = corrections.filter((c) => c.status === "reviewed");
+  const pending = localCorrections.filter((c) => c.status === "pending");
+  const reviewed = localCorrections.filter((c) => c.status === "reviewed");
 
   return (
     <div className="px-4 py-5 flex flex-col gap-4">
@@ -131,10 +146,12 @@ export function TrainerCorrectionsView({ corrections }: { corrections: Correctio
         </section>
       )}
 
-      {corrections.length === 0 && (
-        <Card padding="lg" className="text-center">
-          <p className="text-gray-400 text-sm">No hay videos enviados todavía.</p>
-        </Card>
+      {localCorrections.length === 0 && (
+        <EmptyState
+          illustration="corrections"
+          title="Sin correcciones pendientes"
+          description="Cuando tus alumnos suban videos, aparecerán acá para que puedas responderlos."
+        />
       )}
     </div>
   );

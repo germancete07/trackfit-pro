@@ -26,8 +26,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar profile={profile as Profile} unreadCount={unreadCount ?? 0} />
-      <main className="pt-14 pb-nav">
-        {children}
+      <main className="pt-14 pb-nav md:pb-8">
+        <div className="max-w-5xl mx-auto">
+          {children}
+        </div>
       </main>
     </div>
   );

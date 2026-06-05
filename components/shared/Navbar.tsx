@@ -12,65 +12,24 @@ interface NavbarProps {
   unreadCount?: number;
 }
 
-function TrainerNav({ pathname }: { pathname: string }) {
-  const links = [
-    { href: "/dashboard", label: "Inicio", icon: HomeIcon },
-    { href: "/dashboard/students", label: "Alumnos", icon: UsersIcon },
-    { href: "/dashboard/sessions", label: "Sesiones", icon: CalendarIcon },
-    { href: "/dashboard/corrections", label: "Correcciones", icon: VideoIcon },
-  ];
-  return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 safe-bottom">
-      <div className="flex">
-        {links.map(({ href, label, icon: Icon }) => (
-          <Link
-            key={href}
-            href={href}
-            className={cn(
-              "flex flex-1 flex-col items-center gap-1 py-2 text-[10px] font-medium transition-colors",
-              pathname === href ? "text-brand-500" : "text-gray-400 hover:text-gray-600"
-            )}
-          >
-            <Icon className={cn("h-5 w-5", pathname === href && "text-brand-500")} />
-            {label}
-          </Link>
-        ))}
-      </div>
-    </nav>
-  );
-}
+const trainerLinks = [
+  { href: "/dashboard", label: "Inicio", icon: HomeIcon },
+  { href: "/dashboard/students", label: "Alumnos", icon: UsersIcon },
+  { href: "/dashboard/sessions", label: "Sesiones", icon: CalendarIcon },
+  { href: "/dashboard/corrections", label: "Correcciones", icon: VideoIcon },
+];
 
-function StudentNav({ pathname }: { pathname: string }) {
-  const links = [
-    { href: "/dashboard", label: "Inicio", icon: HomeIcon },
-    { href: "/dashboard/my-sessions", label: "Sesiones", icon: CalendarIcon },
-    { href: "/dashboard/corrections", label: "Videos", icon: VideoIcon },
-    { href: "/dashboard/history", label: "Historial", icon: ChartIcon },
-  ];
-  return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 safe-bottom">
-      <div className="flex">
-        {links.map(({ href, label, icon: Icon }) => (
-          <Link
-            key={href}
-            href={href}
-            className={cn(
-              "flex flex-1 flex-col items-center gap-1 py-2 text-[10px] font-medium transition-colors",
-              pathname === href ? "text-brand-500" : "text-gray-400 hover:text-gray-600"
-            )}
-          >
-            <Icon className={cn("h-5 w-5", pathname === href && "text-brand-500")} />
-            {label}
-          </Link>
-        ))}
-      </div>
-    </nav>
-  );
-}
+const studentLinks = [
+  { href: "/dashboard", label: "Inicio", icon: HomeIcon },
+  { href: "/dashboard/my-sessions", label: "Sesiones", icon: CalendarIcon },
+  { href: "/dashboard/corrections", label: "Videos", icon: VideoIcon },
+  { href: "/dashboard/history", label: "Historial", icon: ChartIcon },
+];
 
 export function Navbar({ profile, unreadCount = 0 }: NavbarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const links = profile.role === "trainer" ? trainerLinks : studentLinks;
 
   async function handleLogout() {
     const supabase = createClient();
@@ -83,18 +42,43 @@ export function Navbar({ profile, unreadCount = 0 }: NavbarProps) {
     <>
       {/* Top bar */}
       <header className="fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-100 safe-top">
-        <div className="flex h-14 items-center justify-between px-4">
-          <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-lg bg-brand-500 flex items-center justify-center">
-              <span className="text-white text-xs font-bold">TF</span>
+        <div className="max-w-5xl mx-auto flex h-14 items-center justify-between px-4">
+          {/* Logo */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="h-7 w-7 rounded-lg bg-brand-500 flex items-center justify-center">
+                <span className="text-white text-xs font-bold">TF</span>
+              </div>
+              <span className="font-bold text-gray-900 text-sm">TrackFit Pro</span>
             </div>
-            <span className="font-bold text-gray-900 text-sm">TrackFit Pro</span>
+
+            {/* Desktop nav links */}
+            <nav className="hidden md:flex items-center gap-1">
+              {links.map(({ href, label, icon: Icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
+                    pathname === href
+                      ? "bg-brand-50 text-brand-600"
+                      : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </Link>
+              ))}
+            </nav>
           </div>
+
+          {/* Right side */}
           <div className="flex items-center gap-2">
+            <span className="hidden md:block text-xs text-gray-400 mr-1">{profile.full_name}</span>
             <NotificationBell count={unreadCount} />
             <button
               onClick={handleLogout}
-              className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200"
+              className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
               title="Cerrar sesión"
             >
               <LogoutIcon className="h-4 w-4" />
@@ -103,17 +87,28 @@ export function Navbar({ profile, unreadCount = 0 }: NavbarProps) {
         </div>
       </header>
 
-      {/* Bottom nav */}
-      {profile.role === "trainer" ? (
-        <TrainerNav pathname={pathname} />
-      ) : (
-        <StudentNav pathname={pathname} />
-      )}
+      {/* Bottom nav — mobile only */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 safe-bottom">
+        <div className="flex">
+          {links.map(({ href, label, icon: Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                "flex flex-1 flex-col items-center gap-1 py-2 text-[10px] font-medium transition-colors",
+                pathname === href ? "text-brand-500" : "text-gray-400 hover:text-gray-600"
+              )}
+            >
+              <Icon className={cn("h-5 w-5", pathname === href && "text-brand-500")} />
+              {label}
+            </Link>
+          ))}
+        </div>
+      </nav>
     </>
   );
 }
 
-// Icons
 function HomeIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

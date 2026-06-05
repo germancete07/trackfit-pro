@@ -105,103 +105,131 @@ export function ExerciseLogger({ session, exercises, studentId }: Props) {
     router.refresh();
   }
 
+  const ex = exercises[activeIndex];
+  const log = ex ? logs[ex.id] : null;
+  const embedUrl = ex?.youtube_url ? getYoutubeEmbedUrl(ex.youtube_url) : null;
+  const doneCount = exercises.filter((e) => logs[e.id]?.saved).length;
+
   return (
     <div className="px-4 py-5 flex flex-col gap-4">
       {/* Header */}
       <div>
         <h1 className="text-xl font-black text-gray-900">{session.name}</h1>
-        <div className="flex items-center gap-2 mt-1">
-          <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+        <div className="flex items-center gap-3 mt-1.5">
+          <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
             <div
-              className="h-full bg-brand-500 rounded-full transition-all"
-              style={{ width: `${(exercises.filter((ex) => logs[ex.id]?.saved).length / exercises.length) * 100}%` }}
+              className="h-full bg-brand-500 rounded-full transition-all duration-500"
+              style={{ width: `${(doneCount / exercises.length) * 100}%` }}
             />
           </div>
-          <span className="text-xs text-gray-500">
-            {exercises.filter((ex) => logs[ex.id]?.saved).length}/{exercises.length}
+          <span className="text-xs font-semibold text-gray-500 flex-shrink-0">
+            {doneCount}/{exercises.length} ejercicios
           </span>
         </div>
       </div>
 
       {/* Exercise tabs */}
       <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
-        {exercises.map((ex, i) => (
+        {exercises.map((e, i) => (
           <button
-            key={ex.id}
+            key={e.id}
             onClick={() => setActiveIndex(i)}
             className={`flex-shrink-0 h-7 px-3 rounded-full text-xs font-semibold transition-all ${
               i === activeIndex
-                ? "bg-brand-500 text-white"
-                : logs[ex.id]?.saved
-                ? "bg-green-100 text-green-600"
-                : "bg-gray-100 text-gray-500"
+                ? "bg-brand-500 text-white shadow-sm"
+                : logs[e.id]?.saved
+                ? "bg-green-100 text-green-700"
+                : "bg-gray-100 text-gray-500 hover:bg-gray-200"
             }`}
           >
-            {logs[ex.id]?.saved ? "✓" : i + 1} {ex.name.length > 10 ? ex.name.slice(0, 10) + "…" : ex.name}
+            {logs[e.id]?.saved ? "✓ " : `${i + 1}. `}
+            {e.name.length > 12 ? e.name.slice(0, 12) + "…" : e.name}
           </button>
         ))}
       </div>
 
-      {/* Active exercise */}
-      {exercises[activeIndex] && (() => {
-        const ex = exercises[activeIndex];
-        const log = logs[ex.id];
-        const embedUrl = ex.youtube_url ? getYoutubeEmbedUrl(ex.youtube_url) : null;
+      {/* Main content: two columns on desktop */}
+      {ex && log && (
+        <div className="md:grid md:grid-cols-2 md:gap-6 md:items-start flex flex-col gap-3">
 
-        return (
-          <div className="flex flex-col gap-3">
+          {/* Left: exercise info */}
+          <div className="flex flex-col gap-3 md:sticky md:top-20">
             <Card padding="md" className="flex flex-col gap-3">
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <h2 className="text-base font-black text-gray-900">{ex.name}</h2>
-                  <p className="text-sm text-brand-500 font-semibold">{ex.sets} series × {ex.reps} reps</p>
-                  {ex.rest_seconds && <p className="text-xs text-gray-400">{ex.rest_seconds}s descanso</p>}
+                  <p className="text-xs text-brand-500 font-bold uppercase tracking-wide mb-0.5">
+                    Ejercicio {activeIndex + 1} de {exercises.length}
+                  </p>
+                  <h2 className="text-lg font-black text-gray-900">{ex.name}</h2>
+                  <p className="text-sm text-brand-600 font-semibold mt-0.5">
+                    {ex.sets} series × {ex.reps} reps
+                  </p>
+                  {ex.rest_seconds && (
+                    <p className="text-xs text-gray-400 mt-0.5">{ex.rest_seconds}s de descanso</p>
+                  )}
                 </div>
                 {log.saved && <Badge variant="success">✓ Guardado</Badge>}
               </div>
 
               {ex.technical_note && (
-                <div className="bg-brand-50 rounded-xl px-3 py-2.5">
-                  <p className="text-xs font-semibold text-brand-600 mb-0.5">Nota técnica</p>
-                  <p className="text-xs text-brand-700">{ex.technical_note}</p>
-                </div>
-              )}
-
-              {embedUrl && (
-                <div>
-                  {expandedVideo === ex.id ? (
-                    <div className="rounded-xl overflow-hidden aspect-video">
-                      <iframe
-                        src={embedUrl}
-                        className="w-full h-full"
-                        allowFullScreen
-                        title={ex.name}
-                      />
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setExpandedVideo(ex.id)}
-                      className="flex items-center gap-2 text-xs text-brand-500 font-medium"
-                    >
-                      <div className="h-6 w-6 rounded-full bg-red-500 flex items-center justify-center">
-                        <svg className="h-3 w-3 text-white ml-0.5" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M8 5v14l11-7z" />
-                        </svg>
-                      </div>
-                      Ver video de referencia
-                    </button>
-                  )}
+                <div className="bg-brand-50 rounded-xl px-3 py-2.5 border border-brand-100">
+                  <p className="text-xs font-semibold text-brand-600 mb-0.5">📌 Nota técnica</p>
+                  <p className="text-sm text-brand-700">{ex.technical_note}</p>
                 </div>
               )}
             </Card>
 
-            {/* Log form */}
+            {/* Video */}
+            {embedUrl && (
+              <Card padding="none" className="overflow-hidden">
+                {expandedVideo === ex.id ? (
+                  <div className="aspect-video">
+                    <iframe
+                      src={embedUrl}
+                      className="w-full h-full"
+                      allowFullScreen
+                      title={ex.name}
+                    />
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setExpandedVideo(ex.id)}
+                    className="w-full flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="h-9 w-9 rounded-full bg-red-600 flex items-center justify-center flex-shrink-0 shadow">
+                      <svg className="h-4 w-4 text-white ml-0.5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </div>
+                    <span className="text-sm font-medium text-gray-700">Ver video de referencia</span>
+                  </button>
+                )}
+              </Card>
+            )}
+
+            {/* Desktop prev/next */}
+            <div className="hidden md:flex gap-2">
+              {activeIndex > 0 && (
+                <Button variant="ghost" size="sm" onClick={() => setActiveIndex(activeIndex - 1)} className="flex-1">
+                  ← Anterior
+                </Button>
+              )}
+              {activeIndex < exercises.length - 1 && (
+                <Button variant="secondary" size="sm" onClick={() => setActiveIndex(activeIndex + 1)} className="flex-1">
+                  Siguiente →
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Right: log form */}
+          <div className="flex flex-col gap-3">
             <Card padding="md" className="flex flex-col gap-4">
               <h3 className="text-sm font-bold text-gray-700">Registrá tu carga</h3>
 
               {log.error && (
-                <p className="text-xs text-red-500">{log.error}</p>
+                <p className="text-xs text-red-500 font-medium">{log.error}</p>
               )}
 
               <div className="grid grid-cols-2 gap-3">
@@ -249,36 +277,26 @@ export function ExerciseLogger({ session, exercises, studentId }: Props) {
               </Button>
             </Card>
 
-            {/* Nav buttons */}
-            <div className="flex gap-2">
+            {/* Mobile prev/next */}
+            <div className="flex gap-2 md:hidden">
               {activeIndex > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setActiveIndex(activeIndex - 1)}
-                  className="flex-1"
-                >
+                <Button variant="ghost" size="sm" onClick={() => setActiveIndex(activeIndex - 1)} className="flex-1">
                   ← Anterior
                 </Button>
               )}
               {activeIndex < exercises.length - 1 && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setActiveIndex(activeIndex + 1)}
-                  className="flex-1"
-                >
+                <Button variant="secondary" size="sm" onClick={() => setActiveIndex(activeIndex + 1)} className="flex-1">
                   Siguiente →
                 </Button>
               )}
             </div>
           </div>
-        );
-      })()}
+        </div>
+      )}
 
       {/* Finish */}
       {allSaved && (
-        <Button size="lg" className="w-full" onClick={finishSession}>
+        <Button size="lg" className="w-full md:max-w-sm md:mx-auto" onClick={finishSession}>
           🎉 Finalizar sesión
         </Button>
       )}

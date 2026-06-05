@@ -1,4 +1,5 @@
 import { LoginForm } from "@/components/auth/LoginForm";
+import { AuthHashHandler } from "@/components/auth/AuthHashHandler";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
@@ -21,6 +22,7 @@ export default async function LoginPage() {
 
         {/* Card */}
         <div className="bg-white rounded-3xl p-6 shadow-2xl">
+          <AuthHashHandler />
           <LoginForm />
         </div>
       </div>

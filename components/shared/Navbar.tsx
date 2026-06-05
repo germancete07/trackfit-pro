@@ -40,29 +40,29 @@ export function Navbar({ profile, unreadCount = 0 }: NavbarProps) {
 
   return (
     <>
-      {/* Top bar */}
-      <header className="fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-100 safe-top">
+      {/* Top bar — glass */}
+      <header className="fixed top-0 left-0 right-0 z-40 bg-white/75 backdrop-blur-xl border-b border-white/60 shadow-sm safe-top">
         <div className="max-w-5xl mx-auto flex h-14 items-center justify-between px-4">
-          {/* Logo */}
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <div className="h-7 w-7 rounded-lg bg-brand-500 flex items-center justify-center">
-                <span className="text-white text-xs font-bold">TF</span>
+          {/* Logo + desktop nav */}
+          <div className="flex items-center gap-5">
+            <div className="flex items-center gap-2.5 flex-shrink-0">
+              <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center shadow-md shadow-brand-500/30">
+                <span className="text-white text-xs font-black tracking-tight">TF</span>
               </div>
-              <span className="font-bold text-gray-900 text-sm">TrackFit Pro</span>
+              <span className="font-black text-gray-900 tracking-tight">TrackFit Pro</span>
             </div>
 
-            {/* Desktop nav links */}
-            <nav className="hidden md:flex items-center gap-1">
+            {/* Desktop nav */}
+            <nav className="hidden md:flex items-center gap-0.5">
               {links.map(({ href, label, icon: Icon }) => (
                 <Link
                   key={href}
                   href={href}
                   className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium transition-all duration-200",
                     pathname === href
-                      ? "bg-brand-50 text-brand-600"
-                      : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"
+                      ? "bg-brand-500 text-white shadow-sm shadow-brand-500/30"
+                      : "text-gray-500 hover:text-gray-800 hover:bg-gray-100/80"
                   )}
                 >
                   <Icon className="h-4 w-4" />
@@ -72,13 +72,13 @@ export function Navbar({ profile, unreadCount = 0 }: NavbarProps) {
             </nav>
           </div>
 
-          {/* Right side */}
-          <div className="flex items-center gap-2">
-            <span className="hidden md:block text-xs text-gray-400 mr-1">{profile.full_name}</span>
+          {/* Right */}
+          <div className="flex items-center gap-1.5">
+            <span className="hidden md:block text-xs text-gray-400 mr-1 font-medium">{profile.full_name}</span>
             <NotificationBell count={unreadCount} />
             <button
               onClick={handleLogout}
-              className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
+              className="h-8 w-8 rounded-full bg-gray-100/80 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
               title="Cerrar sesión"
             >
               <LogoutIcon className="h-4 w-4" />
@@ -87,20 +87,22 @@ export function Navbar({ profile, unreadCount = 0 }: NavbarProps) {
         </div>
       </header>
 
-      {/* Bottom nav — mobile only */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 safe-bottom">
-        <div className="flex">
+      {/* Floating pill nav — mobile only */}
+      <nav className="md:hidden fixed bottom-5 inset-x-0 z-50 flex justify-center px-6">
+        <div className="flex items-center bg-white/80 backdrop-blur-xl rounded-full px-1.5 py-1.5 shadow-xl shadow-black/10 border border-white/70 gap-0.5">
           {links.map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
               href={href}
               className={cn(
-                "flex flex-1 flex-col items-center gap-1 py-2 text-[10px] font-medium transition-colors",
-                pathname === href ? "text-brand-500" : "text-gray-400 hover:text-gray-600"
+                "flex flex-col items-center gap-0.5 px-3.5 py-2 rounded-full text-[10px] font-semibold transition-all duration-200",
+                pathname === href
+                  ? "bg-brand-500 text-white shadow-md shadow-brand-500/40"
+                  : "text-gray-400 hover:text-gray-600"
               )}
             >
-              <Icon className={cn("h-5 w-5", pathname === href && "text-brand-500")} />
-              {label}
+              <Icon className="h-[18px] w-[18px]" />
+              <span>{label}</span>
             </Link>
           ))}
         </div>

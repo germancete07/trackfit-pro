@@ -24,7 +24,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     .eq("read", false);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <Navbar profile={profile as Profile} unreadCount={unreadCount ?? 0} />
       <main className="pt-14 pb-nav md:pb-8">
         <div className="max-w-5xl mx-auto">

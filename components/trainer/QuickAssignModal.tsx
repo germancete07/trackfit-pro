@@ -98,7 +98,10 @@ export function QuickAssignModal({ templateId, templateName, students, onClose }
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
       {/* Sheet */}
-      <div className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[92vh] overflow-y-auto">
+      <div
+          className="relative w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[92vh] overflow-y-auto"
+          style={{ background: "var(--surface-elevated)", border: "0.5px solid var(--surface-elevated-border)" }}
+        >
         {/* Handle */}
         <div className="flex justify-center pt-3 pb-1 sm:hidden">
           <div className="h-1 w-10 bg-gray-200 rounded-full" />

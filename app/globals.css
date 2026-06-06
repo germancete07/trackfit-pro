@@ -2,35 +2,215 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  :root {
-    --safe-top: env(safe-area-inset-top);
-    --safe-bottom: env(safe-area-inset-bottom);
-  }
+/* ── CSS Custom Properties ──────────────────────────────────────────── */
 
+:root {
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
+
+  /* Cards / surfaces */
+  --card-bg: rgba(255, 255, 255, 0.85);
+  --card-border: rgba(0, 0, 0, 0.07);
+
+  /* Sheet / modal elevated surface */
+  --surface-elevated: #ffffff;
+  --surface-elevated-border: rgba(0, 0, 0, 0.08);
+
+  /* Sidebar */
+  --sidebar-bg: #2C2C2A;
+
+  /* Mobile header */
+  --header-bg: rgba(255, 255, 255, 0.80);
+  --header-border: rgba(0, 0, 0, 0.08);
+
+  /* Mobile bottom nav pill */
+  --nav-bg: rgba(255, 255, 255, 0.92);
+  --nav-border: rgba(0, 0, 0, 0.08);
+  --nav-active-text: #2C2C2A;
+
+  /* Input */
+  --input-bg: #ffffff;
+  --input-border: #e5e7eb;
+  --input-text: #111827;
+  --input-placeholder: #9ca3af;
+
+  /* Skeleton shimmer */
+  --skeleton-base: #e5e7eb;
+  --skeleton-shine: #f3f4f6;
+}
+
+.dark {
+  --card-bg: rgba(255, 255, 255, 0.05);
+  --card-border: rgba(255, 255, 255, 0.08);
+
+  --surface-elevated: #1E1E2E;
+  --surface-elevated-border: rgba(255, 255, 255, 0.08);
+
+  --sidebar-bg: #111111;
+
+  --header-bg: rgba(18, 18, 28, 0.85);
+  --header-border: rgba(255, 255, 255, 0.06);
+
+  --nav-bg: rgba(22, 22, 32, 0.92);
+  --nav-border: rgba(255, 255, 255, 0.06);
+  --nav-active-text: #ffffff;
+
+  --input-bg: rgba(255, 255, 255, 0.07);
+  --input-border: rgba(255, 255, 255, 0.12);
+  --input-text: #F0F0EE;
+  --input-placeholder: rgba(200, 200, 200, 0.45);
+
+  --skeleton-base: rgba(255, 255, 255, 0.08);
+  --skeleton-shine: rgba(255, 255, 255, 0.13);
+}
+
+/* ── Base ───────────────────────────────────────────────────────────── */
+
+@layer base {
   * {
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* Fixed background that works on iOS Safari via a pseudo-element */
+  /* Background gradient — light */
   body::before {
     content: '';
     position: fixed;
     inset: 0;
     background: linear-gradient(135deg, #F5F3EE 0%, #DDD9D0 50%, #C4BFB4 100%);
     z-index: -1;
+    transition: background 400ms ease;
+  }
+
+  /* Background gradient — dark */
+  .dark body::before {
+    background: linear-gradient(135deg, #1A1A1A 0%, #2C2C2A 50%, #1E1E2E 100%);
   }
 
   body {
-    @apply text-[#2C2C2A] antialiased;
+    @apply antialiased;
+    color: #2C2C2A;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     min-height: 100dvh;
+    transition: color 300ms ease;
+  }
+
+  .dark body {
+    color: #E0E0DE;
   }
 
   html {
     scroll-behavior: smooth;
   }
 }
+
+/* ── Dark mode — text color overrides ──────────────────────────────── */
+
+.dark .text-gray-900 { color: #F2F2F0; }
+.dark .text-gray-800 { color: #E2E2E0; }
+.dark .text-gray-700 { color: #C8C8C6; }
+.dark .text-gray-600 { color: #A8A8A6; }
+.dark .text-gray-500 { color: #888886; }
+.dark .text-gray-400 { color: #686866; }
+.dark .text-gray-300 { color: #4A4A48; }
+
+/* ── Dark mode — background overrides ──────────────────────────────── */
+
+.dark .bg-white {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+.dark .bg-gray-50 {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+}
+.dark .bg-gray-100 {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+.dark .bg-gray-200 {
+  background-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* ── Dark mode — border overrides ───────────────────────────────────── */
+
+.dark .border-gray-100 { border-color: rgba(255, 255, 255, 0.06) !important; }
+.dark .border-gray-200 { border-color: rgba(255, 255, 255, 0.1) !important; }
+
+/* ── Dark mode — inputs ─────────────────────────────────────────────── */
+
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.dark select,
+.dark textarea {
+  background-color: var(--input-bg) !important;
+  color: var(--input-text) !important;
+  border-color: var(--input-border) !important;
+  color-scheme: dark;
+}
+
+.dark ::placeholder {
+  color: var(--input-placeholder) !important;
+  opacity: 1 !important;
+}
+
+/* ── Dark mode — modals/sheets ──────────────────────────────────────── */
+
+/* Elevated surface (modals, dropdowns, sheets) */
+.surface-elevated {
+  background: var(--surface-elevated) !important;
+  border-color: var(--surface-elevated-border) !important;
+}
+
+/* ── Skeleton shimmer ───────────────────────────────────────────────── */
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-base) 25%,
+    var(--skeleton-shine) 50%,
+    var(--skeleton-base) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 0.5rem;
+}
+
+/* ── Page transition ────────────────────────────────────────────────── */
+
+@keyframes pageIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-page-in {
+  animation: pageIn 180ms ease-out both;
+}
+
+/* ── Card slide-up on load ──────────────────────────────────────────── */
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-card-in {
+  animation: cardIn 250ms ease-out both;
+}
+
+/* ── Utilities ──────────────────────────────────────────────────────── */
 
 @layer utilities {
   .safe-top {
@@ -52,10 +232,10 @@
   }
   /* Glass card — warm white frosted pane over the gradient */
   .glass {
-    background: rgba(255, 255, 255, 0.85);
+    background: var(--card-bg);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    border: 0.5px solid rgba(0, 0, 0, 0.07);
+    border: 0.5px solid var(--card-border);
     border-radius: 12px;
   }
 }

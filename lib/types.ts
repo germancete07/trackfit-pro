@@ -16,6 +16,8 @@ export interface Profile {
   reminder_hour: number | null;
   space_name: string | null;
   preferred_training_days: number[];
+  theme_preference: "light" | "dark" | "system" | null;
+  onboarding_completed: boolean | null;
   created_at: string;
 }
 

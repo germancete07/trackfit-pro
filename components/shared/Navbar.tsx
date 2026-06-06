@@ -73,7 +73,7 @@ export function Navbar({ profile, unreadCount = 0, unreadMessages = 0, notificat
     <>
       {/* ── Desktop sidebar ──────────────────────────────────────────── */}
       <aside className="hidden md:flex flex-col fixed left-0 top-0 h-screen w-56 z-40 overflow-y-auto"
-        style={{ background: "#2C2C2A" }}>
+        style={{ background: "var(--sidebar-bg, #2C2C2A)" }}>
 
         {/* Logo */}
         <div className="px-4 pt-6 pb-4">
@@ -171,10 +171,11 @@ export function Navbar({ profile, unreadCount = 0, unreadMessages = 0, notificat
       {/* ── Mobile top header ─────────────────────────────────────────── */}
       <header className="md:hidden fixed top-0 left-0 right-0 z-40 safe-top"
         style={{
-          background: "rgba(255,255,255,0.80)",
+          background: "var(--header-bg, rgba(255,255,255,0.80))",
           backdropFilter: "blur(16px)",
           WebkitBackdropFilter: "blur(16px)",
-          borderBottom: "0.5px solid rgba(0,0,0,0.08)",
+          borderBottom: "0.5px solid var(--header-border, rgba(0,0,0,0.08))",
+          transition: "background 300ms ease",
         }}>
         <div className="flex h-14 items-center justify-between px-4">
           <Link href="/dashboard" className="flex items-center gap-2.5 flex-shrink-0">
@@ -182,7 +183,7 @@ export function Navbar({ profile, unreadCount = 0, unreadMessages = 0, notificat
               style={{ background: "#534AB7" }}>
               <span className="text-white text-xs font-black tracking-tight">TF</span>
             </div>
-            <span className="font-black text-[#2C2C2A] tracking-tight truncate max-w-[140px] text-sm">
+            <span className="font-black tracking-tight truncate max-w-[140px] text-sm text-gray-900">
               {appName}
             </span>
           </Link>
@@ -219,10 +220,11 @@ export function Navbar({ profile, unreadCount = 0, unreadMessages = 0, notificat
         <div
           className="w-full max-w-sm flex items-center rounded-full px-1 py-1 shadow-xl shadow-black/10 gap-0.5"
           style={{
-            background: "rgba(255,255,255,0.92)",
+            background: "var(--nav-bg, rgba(255,255,255,0.92))",
             backdropFilter: "blur(20px)",
             WebkitBackdropFilter: "blur(20px)",
-            border: "0.5px solid rgba(0,0,0,0.08)",
+            border: "0.5px solid var(--nav-border, rgba(0,0,0,0.08))",
+            transition: "background 300ms ease",
           }}
         >
           {mobileLinks.map(({ href, label, icon: Icon, exact, isChatBadge }) => {
@@ -238,7 +240,7 @@ export function Navbar({ profile, unreadCount = 0, unreadMessages = 0, notificat
                 style={
                   active
                     ? { background: "#534AB7", color: "#fff" }
-                    : { color: "#888" }
+                    : { color: "rgba(128,128,128,0.9)" }
                 }
               >
                 <Icon className="h-[18px] w-[18px] flex-shrink-0" />

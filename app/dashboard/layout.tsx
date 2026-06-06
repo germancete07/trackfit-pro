@@ -6,6 +6,8 @@ import { TimerProvider } from "@/components/shared/TimerContext";
 import { TimerWidget } from "@/components/shared/TimerWidget";
 import { PushRegistration } from "@/components/shared/PushRegistration";
 import { PWAInstallBanner } from "@/components/shared/PWAInstallBanner";
+import { ThemeProvider } from "@/components/shared/ThemeProvider";
+import { PageTransition } from "@/components/shared/PageTransition";
 import type { Profile } from "@/lib/types";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -51,26 +53,30 @@ export default async function DashboardLayout({ children }: { children: React.Re
       .limit(15),
   ]);
 
+  const defaultTheme = (profile.theme_preference ?? "system") as "light" | "dark" | "system";
+
   return (
-    <ToastProvider>
-      <TimerProvider>
-        <div className="min-h-screen">
-          <Navbar
-            profile={profile as Profile}
-            unreadCount={unreadCount ?? 0}
-            unreadMessages={unreadMessages ?? 0}
-            notifications={(recentNotifications ?? []) as any}
-          />
-          <main className="pt-14 pb-nav md:pt-0 md:pb-8 md:ml-56">
-            <div className="max-w-4xl mx-auto">
-              {children}
-            </div>
-          </main>
-          <TimerWidget />
-          <PushRegistration userId={user.id} />
-          <PWAInstallBanner />
-        </div>
-      </TimerProvider>
-    </ToastProvider>
+    <ThemeProvider defaultTheme={defaultTheme} userId={user.id}>
+      <ToastProvider>
+        <TimerProvider>
+          <div className="min-h-screen">
+            <Navbar
+              profile={profile as Profile}
+              unreadCount={unreadCount ?? 0}
+              unreadMessages={unreadMessages ?? 0}
+              notifications={(recentNotifications ?? []) as any}
+            />
+            <main className="pt-14 pb-nav md:pt-0 md:pb-8 md:ml-56">
+              <div className="max-w-4xl mx-auto">
+                <PageTransition>{children}</PageTransition>
+              </div>
+            </main>
+            <TimerWidget />
+            <PushRegistration userId={user.id} />
+            <PWAInstallBanner />
+          </div>
+        </TimerProvider>
+      </ToastProvider>
+    </ThemeProvider>
   );
 }

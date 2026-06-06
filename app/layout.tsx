@@ -13,6 +13,7 @@ export const metadata: Metadata = {
   icons: {
     apple: "/icons/apple-touch-icon.png",
     icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
       { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
       { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
@@ -31,9 +32,25 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+// Anti-flash script: applied before first paint to avoid white flash in dark mode
+const themeScript = `
+try {
+  var stored = localStorage.getItem('tf-theme');
+  var theme = stored || 'system';
+  if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    document.documentElement.classList.add('dark');
+  } else {
+    document.documentElement.classList.remove('dark');
+  }
+} catch(e) {}
+`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es">
+    <html lang="es" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body>{children}</body>
     </html>
   );

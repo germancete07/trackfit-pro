@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { formatDate } from "@/lib/utils";
+import { OnboardingModal } from "@/components/student/OnboardingModal";
 import type { Profile } from "@/lib/types";
 
 interface StreakDay { date: string; label: string; trained: boolean; }
@@ -14,6 +15,8 @@ interface Props {
   nextSession: { id: string; name: string; scheduled_date: string } | null;
   streakDays: StreakDay[];
   cycleProgress: { total: number; completed: number; routineName: string } | null;
+  showOnboarding?: boolean;
+  trainerName?: string;
 }
 
 export function StudentDashboard({
@@ -24,12 +27,18 @@ export function StudentDashboard({
   nextSession,
   streakDays,
   cycleProgress,
+  showOnboarding = false,
+  trainerName = "Tu entrenador",
 }: Props) {
   const firstName = profile.full_name?.split(" ")[0] || "Atleta";
   const trainedCount = streakDays.filter(d => d.trained).length;
 
   return (
     <div className="px-4 py-5 flex flex-col gap-5">
+      {/* Onboarding modal — shown once for new students */}
+      {showOnboarding && (
+        <OnboardingModal studentName={firstName} trainerName={trainerName} />
+      )}
       {/* Greeting */}
       <div>
         <h1 className="text-2xl font-black text-gray-900">

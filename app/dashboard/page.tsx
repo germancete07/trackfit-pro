@@ -248,6 +248,18 @@ export default async function DashboardPage() {
     return { date: dateStr, label: labels[dow], trained: completedDates.has(dateStr) };
   });
 
+  // Onboarding — fetch trainer name if needed
+  const showOnboarding = !profile.onboarding_completed;
+  let trainerName = "Tu entrenador";
+  if (showOnboarding && profile.trainer_id) {
+    const { data: trainer } = await supabase
+      .from("profiles")
+      .select("full_name, space_name")
+      .eq("id", profile.trainer_id)
+      .single();
+    trainerName = trainer?.full_name ?? trainer?.space_name ?? "Tu entrenador";
+  }
+
   return (
     <StudentDashboard
       profile={profile}
@@ -257,6 +269,8 @@ export default async function DashboardPage() {
       nextSession={nextSession ?? null}
       streakDays={streakDays}
       cycleProgress={cycleProgress}
+      showOnboarding={showOnboarding}
+      trainerName={trainerName}
     />
   );
 }

@@ -15,10 +15,10 @@ export function Card({ className, padding = "md", glass, style, children, ...pro
         className
       )}
       style={{
-        background: "rgba(255,255,255,0.85)",
+        background: "var(--card-bg)",
         backdropFilter: "blur(8px)",
         WebkitBackdropFilter: "blur(8px)",
-        border: "0.5px solid rgba(0,0,0,0.07)",
+        border: "0.5px solid var(--card-border)",
         ...style,
       }}
       {...props}

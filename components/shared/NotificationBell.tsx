@@ -157,8 +157,8 @@ export function NotificationBell({ count, notifications, userRole = "student" }:
       {open && (
         <div
           ref={panelRef}
-          style={panelStyle}
-          className="fixed z-[200] bg-white border border-gray-100 shadow-2xl rounded-2xl overflow-hidden"
+          style={{ ...panelStyle, background: "var(--surface-elevated)", border: "0.5px solid var(--surface-elevated-border)" }}
+          className="fixed z-[200] shadow-2xl rounded-2xl overflow-hidden"
         >
           <NotifPanel
             notifs={localNotifs}

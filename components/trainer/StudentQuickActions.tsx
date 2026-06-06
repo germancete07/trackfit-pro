@@ -44,7 +44,10 @@ export function StudentQuickActions({ studentId, studentName, hasActiveRoutine, 
           <div className="fixed inset-0 z-40" onClick={(e) => { e.preventDefault(); setOpen(false); }} />
 
           {/* Action sheet */}
-          <div className="absolute right-0 top-9 z-50 bg-white border border-gray-200 rounded-2xl shadow-xl py-2 min-w-[200px]">
+          <div
+              className="absolute right-0 top-9 z-50 rounded-2xl shadow-xl py-2 min-w-[200px]"
+              style={{ background: "var(--surface-elevated)", border: "0.5px solid var(--surface-elevated-border)" }}
+            >
             <p className="px-3 py-1.5 text-xs font-bold text-gray-400 uppercase tracking-wide border-b border-gray-100 mb-1">{studentName}</p>
 
             {unreadMessages > 0 && (

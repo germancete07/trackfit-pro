@@ -5,6 +5,7 @@ import { InviteStudentForm } from "@/components/trainer/InviteStudentForm";
 import { Card } from "@/components/ui/Card";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
+import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import type { Profile } from "@/lib/types";
 
 export default async function SettingsPage() {
@@ -18,7 +19,12 @@ export default async function SettingsPage() {
 
   return (
     <div className="px-4 py-5 flex flex-col gap-4">
-      <h1 className="text-xl font-black text-gray-900">Configuracion</h1>
+      <h1 className="text-xl font-black text-gray-900">Configuración</h1>
+
+      {/* Apariencia */}
+      <Card padding="md">
+        <ThemeToggle />
+      </Card>
 
       {profile.role === "trainer" && (
         <>

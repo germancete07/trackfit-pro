@@ -30,6 +30,10 @@ export function useTimer() {
 }
 
 function playDone() {
+  // Vibration: 3 pulses
+  try { navigator.vibrate?.([200, 100, 200, 100, 200]); } catch {}
+
+  // Sound: 3 beeps
   try {
     const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
     [0, 0.35, 0.7].forEach((t) => {

@@ -4,6 +4,20 @@ import { Card } from "@/components/ui/Card";
 import { WeeklyLoadChart } from "@/components/trainer/WeeklyLoadChart";
 import { formatDate, rpeColor, cn } from "@/lib/utils";
 
+function parseReps(repsStr: string): number {
+  const matches = repsStr?.match(/\d+/g);
+  if (!matches) return 8;
+  const nums = matches.map(Number);
+  if (nums.length === 1) return nums[0];
+  if (repsStr.includes("x")) return nums[nums.length - 1];
+  if (repsStr.includes("-")) return Math.round((nums[0] + nums[1]) / 2);
+  return nums[0];
+}
+
+function epley(weight: number, reps: number): number {
+  return Math.round(weight * (1 + reps / 30) * 10) / 10;
+}
+
 export default async function StudentHistoryPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -14,7 +28,7 @@ export default async function StudentHistoryPage() {
 
   const { data: logs } = await supabase
     .from("exercise_logs")
-    .select("*, exercise:exercises(name, session:sessions(name))")
+    .select("*, exercise:exercises(name, reps, session:sessions(name))")
     .eq("student_id", user.id)
     .gte("logged_at", eightWeeksAgo.toISOString())
     .order("logged_at", { ascending: false });
@@ -66,6 +80,14 @@ export default async function StudentHistoryPage() {
                   <div className="text-right flex-shrink-0">
                     <p className="text-sm font-bold">{log.weight_kg}kg</p>
                     <p className="text-xs text-gray-400">{log.completed_sets} series</p>
+                    {log.weight_kg && (log.exercise as any)?.reps && (
+                      <p className="text-[10px] text-gray-400 mt-0.5">
+                        1RM ~<span className="font-semibold text-brand-500">
+                          {epley(log.weight_kg, parseReps((log.exercise as any).reps))}kg
+                        </span>{" "}
+                        <span className="text-gray-300">est.</span>
+                      </p>
+                    )}
                     {log.rpe && (
                       <span className={cn("text-xs font-bold px-1.5 py-0.5 rounded-full", rpeColor(log.rpe))}>
                         RPE {log.rpe}

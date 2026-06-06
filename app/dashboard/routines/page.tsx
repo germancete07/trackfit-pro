@@ -60,7 +60,7 @@ export default async function RoutinesPage({
       .order("sort_order"),
     supabase
       .from("profiles")
-      .select("id, full_name")
+      .select("id, full_name, preferred_training_days")
       .eq("trainer_id", user.id)
       .eq("archived", false)
       .order("full_name"),

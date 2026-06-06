@@ -22,7 +22,7 @@ export default async function NewSessionPage({ searchParams }: { searchParams: {
 
   return (
     <div className="px-4 py-5">
-      <h1 className="text-xl font-black text-gray-900 mb-5">Nueva sesión</h1>
+      <h1 className="text-xl font-black text-gray-900 mb-5">Nueva rutina</h1>
       <SessionForm
         trainerId={user.id}
         students={students ?? []}

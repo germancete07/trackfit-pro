@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { useToast } from "@/components/shared/ToastProvider";
 import { usePushPermission } from "@/components/shared/PushRegistration";
-import { updateProfileAction, changePasswordAction, updateReminderAction } from "@/app/dashboard/profile/actions";
+import { updateProfileAction, changePasswordAction, updateReminderAction, updatePreferredTrainingDaysAction } from "@/app/dashboard/profile/actions";
+import { cn } from "@/lib/utils";
 import type { Profile } from "@/lib/types";
 
 export function ProfileForm({ profile }: { profile: Profile }) {
@@ -29,6 +30,26 @@ export function ProfileForm({ profile }: { profile: Profile }) {
   const [savingReminder, setSavingReminder] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
   const { requestPermission } = usePushPermission();
+
+  const PREF_DAYS = [
+    { value: 1, label: "L", full: "Lunes" },
+    { value: 2, label: "M", full: "Martes" },
+    { value: 3, label: "X", full: "Mié" },
+    { value: 4, label: "J", full: "Jueves" },
+    { value: 5, label: "V", full: "Viernes" },
+    { value: 6, label: "S", full: "Sáb" },
+    { value: 0, label: "D", full: "Dom" },
+  ];
+  const [prefDays, setPrefDays] = useState<number[]>(profile.preferred_training_days ?? []);
+  const [savingDays, setSavingDays] = useState(false);
+
+  async function handleSaveDays() {
+    setSavingDays(true);
+    const r = await updatePreferredTrainingDaysAction(prefDays);
+    setSavingDays(false);
+    if (r?.error) showToast(r.error, "error");
+    else showToast("Días guardados");
+  }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -116,6 +137,39 @@ export function ProfileForm({ profile }: { profile: Profile }) {
           </Button>
         </form>
       </Card>
+
+      {/* Días de entrenamiento — solo alumnos */}
+      {profile.role === "student" && (
+        <Card padding="md" className="flex flex-col gap-4">
+          <div>
+            <h2 className="text-sm font-bold text-gray-700">Mis días de entrenamiento</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Tu entrenador los usará para precargar los días al asignarte una rutina.</p>
+          </div>
+          <div className="flex gap-2">
+            {PREF_DAYS.map((d) => (
+              <button
+                key={d.value}
+                type="button"
+                title={d.full}
+                onClick={() => setPrefDays(prev =>
+                  prev.includes(d.value) ? prev.filter(v => v !== d.value) : [...prev, d.value]
+                )}
+                className={cn(
+                  "flex-1 h-11 rounded-xl text-sm font-bold transition-all duration-150",
+                  prefDays.includes(d.value)
+                    ? "bg-brand-500 text-white shadow-sm shadow-brand-500/30"
+                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                )}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
+          <Button type="button" variant="secondary" size="sm" loading={savingDays} onClick={handleSaveDays}>
+            Guardar días
+          </Button>
+        </Card>
+      )}
 
       {/* Notificaciones push */}
       <Card padding="md" className="flex flex-col gap-4">

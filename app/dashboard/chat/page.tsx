@@ -23,8 +23,12 @@ export default async function ChatPage() {
   if (profile.role === "student") {
     if (!profile.trainer_id) {
       return (
-        <div className="px-4 py-10 text-center">
-          <p className="text-gray-500 text-sm">No tenés entrenador asignado aun.</p>
+        <div className="px-4 py-16 flex flex-col items-center gap-3 text-center">
+          <p className="text-5xl">💬</p>
+          <p className="text-base font-bold text-gray-700">Sin entrenador asignado</p>
+          <p className="text-sm text-gray-400 max-w-xs">
+            Una vez que un entrenador te agregue a su cuenta vas a poder chatear con él acá.
+          </p>
         </div>
       );
     }
@@ -112,8 +116,10 @@ export default async function ChatPage() {
       <h1 className="text-xl font-black text-gray-900">Mensajes</h1>
 
       {studentList.length === 0 ? (
-        <div className="py-16 text-center">
-          <p className="text-gray-500 text-sm">Agregá alumnos para poder chatear con ellos.</p>
+        <div className="py-16 flex flex-col items-center gap-3 text-center">
+          <p className="text-5xl">💬</p>
+          <p className="text-base font-bold text-gray-700">Sin conversaciones</p>
+          <p className="text-sm text-gray-400">Agregá alumnos para poder chatear con ellos.</p>
         </div>
       ) : (
         <div className="flex flex-col gap-2">

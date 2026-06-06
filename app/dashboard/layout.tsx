@@ -5,6 +5,7 @@ import { ToastProvider } from "@/components/shared/ToastProvider";
 import { TimerProvider } from "@/components/shared/TimerContext";
 import { TimerWidget } from "@/components/shared/TimerWidget";
 import { PushRegistration } from "@/components/shared/PushRegistration";
+import { PWAInstallBanner } from "@/components/shared/PWAInstallBanner";
 import type { Profile } from "@/lib/types";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -27,6 +28,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const [
     { count: unreadCount },
     { count: unreadMessages },
+    { data: recentNotifications },
   ] = await Promise.all([
     supabase
       .from("notifications")
@@ -41,6 +43,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
           .neq("sender_id", user.id)
           .eq("read", false)
       : Promise.resolve({ count: 0 }),
+    supabase
+      .from("notifications")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(15),
   ]);
 
   return (
@@ -51,14 +59,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
             profile={profile as Profile}
             unreadCount={unreadCount ?? 0}
             unreadMessages={unreadMessages ?? 0}
+            notifications={(recentNotifications ?? []) as any}
           />
-          <main className="pt-14 pb-nav md:pb-8">
-            <div className="max-w-5xl mx-auto">
+          <main className="pt-14 pb-nav md:pt-0 md:pb-8 md:ml-56">
+            <div className="max-w-4xl mx-auto">
               {children}
             </div>
           </main>
           <TimerWidget />
           <PushRegistration userId={user.id} />
+          <PWAInstallBanner />
         </div>
       </TimerProvider>
     </ToastProvider>

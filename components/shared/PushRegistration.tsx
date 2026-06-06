@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export function PushRegistration({ userId }: { userId: string }) {
+  const router = useRouter();
+
   useEffect(() => {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
 
@@ -15,7 +18,6 @@ export function PushRegistration({ userId }: { userId: string }) {
 
         const existing = await reg.pushManager.getSubscription();
         if (existing) {
-          // Already subscribed, make sure it's saved
           await saveSub(existing, userId);
           return;
         }
@@ -33,6 +35,20 @@ export function PushRegistration({ userId }: { userId: string }) {
 
     setup();
   }, [userId]);
+
+  // Handle deep-link navigation from service worker notificationclick
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+
+    function handleMessage(event: MessageEvent) {
+      if (event.data?.type === "NOTIFICATION_CLICK" && event.data?.url) {
+        router.push(event.data.url);
+      }
+    }
+
+    navigator.serviceWorker.addEventListener("message", handleMessage);
+    return () => navigator.serviceWorker.removeEventListener("message", handleMessage);
+  }, [router]);
 
   return null;
 }

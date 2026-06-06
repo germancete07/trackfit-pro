@@ -20,7 +20,7 @@ export default async function SessionsPage() {
   return (
     <div className="px-4 py-5 flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-black text-gray-900">Sesiones</h1>
+        <h1 className="text-xl font-black text-gray-900">Rutinas</h1>
         <Link href="/dashboard/sessions/new">
           <Button size="sm">
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -58,9 +58,9 @@ export default async function SessionsPage() {
         </div>
       ) : (
         <Card padding="lg" className="text-center flex flex-col items-center gap-3">
-          <p className="text-gray-400 text-sm">No creaste sesiones todavía.</p>
+          <p className="text-gray-400 text-sm">No creaste rutinas todavía.</p>
           <Link href="/dashboard/sessions/new">
-            <Button size="sm">Crear primera sesión</Button>
+            <Button size="sm">Crear primera rutina</Button>
           </Link>
         </Card>
       )}

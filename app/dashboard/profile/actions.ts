@@ -31,6 +31,18 @@ export async function changePasswordAction(newPassword: string) {
   return { success: true };
 }
 
+export async function updatePreferredTrainingDaysAction(days: number[]) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+  const { error } = await supabase
+    .from("profiles")
+    .update({ preferred_training_days: days })
+    .eq("id", user.id);
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
 export async function updateReminderAction(reminderHour: number | null) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

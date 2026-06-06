@@ -7,6 +7,8 @@ interface PR {
   exercise_name: string;
   max_weight: number;
   last_logged: string;
+  est_1rm: number;
+  muscle_group: string | null;
 }
 
 interface WeeklyVol {
@@ -85,6 +87,53 @@ function LineChart({ points, color = "#534AB7" }: { points: number[]; color?: st
   );
 }
 
+function PRGroupedList({ prs }: { prs: PR[] }) {
+  const groups: Record<string, PR[]> = {};
+  for (const pr of prs) {
+    const key = pr.muscle_group ?? "Sin categoría";
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(pr);
+  }
+  const sortedGroups = Object.entries(groups).sort(([a], [b]) => {
+    if (a === "Sin categoría") return 1;
+    if (b === "Sin categoría") return -1;
+    return a.localeCompare(b);
+  });
+
+  let globalIdx = 0;
+  return (
+    <div className="flex flex-col gap-4">
+      {sortedGroups.map(([group, items]) => (
+        <div key={group}>
+          <p className="text-[10px] font-black uppercase tracking-wide text-gray-400 mb-2">{group}</p>
+          <div className="flex flex-col gap-2">
+            {items.map((pr) => {
+              const rank = globalIdx++;
+              return (
+                <div key={pr.exercise_name} className="flex items-center gap-2">
+                  <span className="text-xs font-black w-5 text-center leading-none">
+                    {rank === 0 ? "🥇" : rank === 1 ? "🥈" : rank === 2 ? "🥉" : <span className="text-gray-300">{rank + 1}</span>}
+                  </span>
+                  <p className="text-sm text-gray-800 flex-1 truncate font-medium">{pr.exercise_name}</p>
+                  <div className="flex flex-col items-end">
+                    <span className="text-sm font-black text-brand-600 leading-none">{pr.max_weight} kg</span>
+                    {pr.est_1rm > 0 && (
+                      <span className="text-[10px] text-gray-400 leading-none mt-0.5">
+                        ~{pr.est_1rm} kg 1RM*
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+      <p className="text-[10px] text-gray-300 text-right">* 1RM estimado (Epley) — teórico</p>
+    </div>
+  );
+}
+
 export function ProgressView({ prs, weeklyVolume, rpeTrend, exercises, weightHistory }: Props) {
   const [selectedExercise, setSelectedExercise] = useState(exercises[0]?.name ?? "");
 
@@ -95,23 +144,17 @@ export function ProgressView({ prs, weeklyVolume, rpeTrend, exercises, weightHis
 
   return (
     <div className="flex flex-col gap-4">
-      {/* PRs */}
+      {/* PRs grouped by muscle_group */}
       <Card padding="md">
-        <h2 className="text-sm font-bold text-gray-700 mb-3">Records personales</h2>
+        <h2 className="text-sm font-bold text-gray-700 mb-3">Récords personales</h2>
         {prs.length === 0 ? (
-          <p className="text-xs text-gray-400">Aun no hay registros.</p>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {prs.slice(0, 8).map((pr, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <span className={`text-xs font-black w-5 text-center ${i === 0 ? "text-yellow-500" : i === 1 ? "text-gray-400" : i === 2 ? "text-amber-600" : "text-gray-300"}`}>
-                  {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`}
-                </span>
-                <p className="text-sm text-gray-800 flex-1 truncate font-medium">{pr.exercise_name}</p>
-                <span className="text-sm font-black text-brand-600">{pr.max_weight} kg</span>
-              </div>
-            ))}
+          <div className="flex flex-col items-center gap-2 py-4 text-center">
+            <p className="text-3xl">🏋️</p>
+            <p className="text-sm font-bold text-gray-600">Sin récords todavía</p>
+            <p className="text-xs text-gray-400">Completá tu primera rutina y tus récords aparecerán acá.</p>
           </div>
+        ) : (
+          <PRGroupedList prs={prs} />
         )}
       </Card>
 
@@ -131,7 +174,9 @@ export function ProgressView({ prs, weeklyVolume, rpeTrend, exercises, weightHis
             </select>
           )}
         </div>
-        {weightPoints.length >= 2 ? (
+        {exercises.length === 0 ? (
+          <p className="text-xs text-gray-400 text-center py-2">Completá rutinas para ver tu evolución de carga.</p>
+        ) : weightPoints.length >= 2 ? (
           <>
             <LineChart points={weightPoints.map((p) => p.max_weight)} />
             <div className="flex justify-between mt-1 text-[10px] text-gray-400">

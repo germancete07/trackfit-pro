@@ -6,17 +6,21 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
   glass?: boolean;
 }
 
-export function Card({ className, padding = "md", glass = false, children, ...props }: CardProps) {
+export function Card({ className, padding = "md", glass, style, children, ...props }: CardProps) {
   return (
     <div
       className={cn(
-        "rounded-2xl border transition-all duration-200",
-        glass
-          ? "bg-white/70 backdrop-blur-xl border-white/50 shadow-lg shadow-black/5"
-          : "bg-white border-gray-100 shadow-sm shadow-black/[0.04]",
+        "rounded-xl transition-all duration-200",
         { none: "", sm: "p-3", md: "p-4", lg: "p-6" }[padding],
         className
       )}
+      style={{
+        background: "rgba(255,255,255,0.85)",
+        backdropFilter: "blur(8px)",
+        WebkitBackdropFilter: "blur(8px)",
+        border: "0.5px solid rgba(0,0,0,0.07)",
+        ...style,
+      }}
       {...props}
     >
       {children}

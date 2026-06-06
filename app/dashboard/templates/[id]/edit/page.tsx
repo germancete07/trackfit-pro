@@ -24,7 +24,7 @@ export default async function EditTemplatePage({ params }: { params: { id: strin
         <Link href="/dashboard/templates">
           <Button variant="ghost" size="sm">← Volver</Button>
         </Link>
-        <h1 className="text-xl font-black text-gray-900">Editar plantilla</h1>
+        <h1 className="text-xl font-black text-gray-900">Editar rutina</h1>
       </div>
       <TemplateForm template={template as any} />
     </div>

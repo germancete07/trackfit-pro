@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Card } from "@/components/ui/Card";
+import { ExerciseLibraryPicker } from "@/components/trainer/ExerciseLibraryPicker";
 import type { SessionTemplate, TemplateExercise } from "@/lib/types";
 
 interface Student { id: string; full_name: string; email: string; }
@@ -38,6 +39,7 @@ export function SessionForm({ trainerId, students, defaultStudentId, templates =
   const [notes, setNotes] = useState("");
   const [exercises, setExercises] = useState<ExerciseDraft[]>([emptyExercise()]);
   const [selectedTemplate, setSelectedTemplate] = useState("");
+  const [showPicker, setShowPicker] = useState(false);
 
   function updateExercise(index: number, field: keyof ExerciseDraft, value: string | number) {
     setExercises((prev) => prev.map((ex, i) => i === index ? { ...ex, [field]: value } : ex));
@@ -62,7 +64,7 @@ export function SessionForm({ trainerId, students, defaultStudentId, templates =
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!studentId) { setError("Seleccioná un alumno"); return; }
-    if (!name.trim()) { setError("Ingresá un nombre para la sesión"); return; }
+    if (!name.trim()) { setError("Ingresá un nombre para la rutina"); return; }
     if (exercises.some((ex) => !ex.name.trim())) { setError("Todos los ejercicios necesitan nombre"); return; }
 
     setError("");
@@ -79,7 +81,7 @@ export function SessionForm({ trainerId, students, defaultStudentId, templates =
       .select().single();
 
     if (sessionErr || !session) {
-      setError("Error al crear la sesión");
+      setError("Error al crear la rutina");
       setLoading(false);
       return;
     }
@@ -95,7 +97,7 @@ export function SessionForm({ trainerId, students, defaultStudentId, templates =
     );
 
     if (exErr) {
-      setError("Sesión creada pero hubo un error con los ejercicios");
+      setError("Rutina creada pero hubo un error con los ejercicios");
       setLoading(false);
       return;
     }
@@ -133,7 +135,7 @@ export function SessionForm({ trainerId, students, defaultStudentId, templates =
               onChange={(e) => loadTemplate(e.target.value)}
               className="flex-1 text-sm bg-transparent text-brand-700 font-medium focus:outline-none cursor-pointer"
             >
-              <option value="">Cargar desde plantilla...</option>
+              <option value="">Cargar desde rutina...</option>
               {templates.map((t) => (
                 <option key={t.id} value={t.id}>{t.name} ({t.template_exercises.length} ejercicios)</option>
               ))}
@@ -143,7 +145,7 @@ export function SessionForm({ trainerId, students, defaultStudentId, templates =
       )}
 
       <Card padding="md" className="flex flex-col gap-4">
-        <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Datos de la sesión</h2>
+        <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Datos de la rutina</h2>
 
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium text-gray-700">Alumno</label>
@@ -158,13 +160,26 @@ export function SessionForm({ trainerId, students, defaultStudentId, templates =
           </select>
         </div>
 
-        <Input label="Nombre de la sesión" placeholder="Ej: Tren superior A" value={name} onChange={(e) => setName(e.target.value)} required />
+        <Input label="Nombre de la rutina" placeholder="Ej: Tren superior A" value={name} onChange={(e) => setName(e.target.value)} required />
         <Input label="Fecha programada" type="date" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} />
-        <Textarea label="Notas generales" placeholder="Instrucciones o contexto de la sesión..." value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
+        <Textarea label="Notas generales" placeholder="Instrucciones o contexto de la rutina..." value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
       </Card>
 
+      {showPicker && (
+        <ExerciseLibraryPicker
+          onSelect={(ex) => setExercises(p => [...p, ex])}
+          onClose={() => setShowPicker(false)}
+        />
+      )}
+
       <div className="flex flex-col gap-3">
-        <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Ejercicios ({exercises.length})</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Ejercicios ({exercises.length})</h2>
+          <button type="button" onClick={() => setShowPicker(true)} className="text-xs text-brand-500 font-semibold hover:underline flex items-center gap-1">
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>
+            Desde biblioteca
+          </button>
+        </div>
 
         {exercises.map((ex, i) => (
           <Card key={i} padding="md" className="flex flex-col gap-3">
@@ -197,7 +212,7 @@ export function SessionForm({ trainerId, students, defaultStudentId, templates =
         </Button>
       </div>
 
-      <Button type="submit" size="lg" loading={loading} className="w-full">Crear sesión</Button>
+      <Button type="submit" size="lg" loading={loading} className="w-full">Crear rutina</Button>
     </form>
   );
 }

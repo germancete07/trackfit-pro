@@ -38,17 +38,22 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "VAPID keys no configuradas" }, { status: 500 });
   }
 
-  const payload = JSON.stringify({
-    title: "TrackFit Pro — Prueba exitosa",
-    body: "Las notificaciones push estan funcionando correctamente.",
-    url: "/dashboard",
-  });
+  // Explicit UTF-8 Buffer to correctly handle Spanish characters (tildes, ñ, ¡, ¿)
+  const payload = Buffer.from(
+    JSON.stringify({
+      title: "TrackFit Pro — Prueba",
+      body: "¡Las notificaciones están funcionando correctamente! ñ á é í ó ú",
+      url: "/dashboard",
+    }),
+    "utf8"
+  );
 
   const results = await Promise.allSettled(
     subs.map((sub) =>
       webpush.sendNotification(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-        payload
+        payload,
+        { contentEncoding: "aes128gcm", TTL: 86400 }
       )
     )
   );

@@ -24,13 +24,13 @@ async function ProgressPageContent({ studentId }: { studentId: string }) {
     // All logs for PRs
     supabase
       .from("exercise_logs")
-      .select("weight_kg, rpe, completed_sets, session_id, logged_at, exercise_id, exercises(name)")
+      .select("weight_kg, rpe, completed_sets, session_id, logged_at, exercise_id, exercises(name, reps, muscle_group)")
       .eq("student_id", studentId)
       .not("weight_kg", "is", null),
     // Recent logs for charts (last 8 weeks)
     supabase
       .from("exercise_logs")
-      .select("weight_kg, rpe, completed_sets, session_id, logged_at, exercise_id, exercises(name)")
+      .select("weight_kg, rpe, completed_sets, session_id, logged_at, exercise_id, exercises(name, reps, muscle_group)")
       .eq("student_id", studentId)
       .gte("logged_at", eightWeeksAgo.toISOString())
       .not("weight_kg", "is", null),
@@ -39,17 +39,35 @@ async function ProgressPageContent({ studentId }: { studentId: string }) {
   const allLogs = logs ?? [];
   const recent = recentLogs ?? [];
 
+  function parseReps(s: string): number {
+    if (!s) return 8;
+    const x = s.match(/(\d+)/);
+    return x ? parseInt(x[1]) : 8;
+  }
+
   // PRs: max weight per exercise name
-  const prMap: Record<string, { max_weight: number; last_logged: string }> = {};
+  const prMap: Record<string, { max_weight: number; last_logged: string; reps: string; muscle_group: string | null }> = {};
   for (const l of allLogs) {
-    const name = (l.exercises as any)?.name as string | undefined;
+    const ex = l.exercises as any;
+    const name = ex?.name as string | undefined;
     if (!name || !l.weight_kg) continue;
     if (!prMap[name] || l.weight_kg > prMap[name].max_weight) {
-      prMap[name] = { max_weight: l.weight_kg, last_logged: l.logged_at };
+      prMap[name] = {
+        max_weight: l.weight_kg,
+        last_logged: l.logged_at,
+        reps: ex?.reps ?? "8",
+        muscle_group: ex?.muscle_group ?? null,
+      };
     }
   }
   const prs = Object.entries(prMap)
-    .map(([exercise_name, v]) => ({ exercise_name, ...v }))
+    .map(([exercise_name, v]) => ({
+      exercise_name,
+      max_weight: v.max_weight,
+      last_logged: v.last_logged,
+      est_1rm: Math.round(v.max_weight * (1 + parseReps(v.reps) / 30) * 10) / 10,
+      muscle_group: v.muscle_group,
+    }))
     .sort((a, b) => b.max_weight - a.max_weight);
 
   // Weekly volume (last 8 weeks)

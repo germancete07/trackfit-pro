@@ -66,28 +66,19 @@ export function TrainerDashboard({ profile, students, stats }: Props) {
         </p>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-2.5">
-        <Card padding="sm" className="flex flex-col gap-0.5">
-          <p className="text-2xl font-black text-green-600">{trainedCount}</p>
-          <p className="text-xs text-gray-500">Activos hoy</p>
-        </Card>
-        <Card padding="sm" className="flex flex-col gap-0.5">
-          <p className="text-2xl font-black text-brand-600">{stats.weeklyCompleted}</p>
-          <p className="text-xs text-gray-500">Sesiones esta semana</p>
-        </Card>
-        <Card padding="sm" className="flex flex-col gap-0.5">
-          <p className={`text-2xl font-black ${stats.unreadMessages > 0 ? "text-blue-600" : "text-gray-400"}`}>
-            {stats.unreadMessages}
-          </p>
-          <p className="text-xs text-gray-500">Mensajes sin leer</p>
-        </Card>
-        <Card padding="sm" className="flex flex-col gap-0.5">
-          <p className={`text-2xl font-black ${stats.pendingCorrections > 0 ? "text-amber-500" : "text-gray-400"}`}>
-            {stats.pendingCorrections}
-          </p>
-          <p className="text-xs text-gray-500">Videos pendientes</p>
-        </Card>
+      {/* Stats — horizontal scroll row */}
+      <div className="flex gap-2.5 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide">
+        {[
+          { value: trainedCount, label: "Activos hoy", color: "text-green-600" },
+          { value: stats.weeklyCompleted, label: "Rutinas semana", color: "text-brand-600" },
+          { value: stats.unreadMessages, label: "Mensajes", color: stats.unreadMessages > 0 ? "text-blue-600" : "text-gray-400" },
+          { value: stats.pendingCorrections, label: "Videos", color: stats.pendingCorrections > 0 ? "text-amber-500" : "text-gray-400" },
+        ].map((s) => (
+          <div key={s.label} className="flex-none w-[calc(25%-8px)] min-w-[72px] bg-white rounded-2xl border border-gray-100 shadow-sm px-3 py-2.5 flex flex-col gap-0.5">
+            <p className={`text-xl font-black leading-none ${s.color}`}>{s.value}</p>
+            <p className="text-[10px] text-gray-500 leading-tight">{s.label}</p>
+          </div>
+        ))}
       </div>
 
       {/* Quick actions */}

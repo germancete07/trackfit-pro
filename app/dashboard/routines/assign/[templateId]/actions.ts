@@ -69,6 +69,8 @@ export async function createAssignmentAction(data: {
     .eq("status", "active");
 
   // Create new assignment
+  // The DB has a unique partial index on (student_id) WHERE status = 'active',
+  // so concurrent inserts are rejected at the DB level instead of creating duplicates.
   const { data: assignment, error: aErr } = await supabase
     .from("routine_assignments")
     .insert({
@@ -83,7 +85,12 @@ export async function createAssignmentAction(data: {
     })
     .select()
     .single();
-  if (aErr || !assignment) return { error: "Error al crear la asignación" };
+  if (aErr || !assignment) {
+    if (aErr?.code === "23505") {
+      return { error: "Este alumno ya tiene una rutina activa. Recargá la página e intentá de nuevo." };
+    }
+    return { error: "Error al crear la asignación" };
+  }
 
   // Generate sessions using shared helper
   const slots = buildSessionSlots(

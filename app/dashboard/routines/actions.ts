@@ -125,6 +125,9 @@ export async function quickAssignAction(data: {
     .eq("status", "active");
 
   // Create new assignment
+  // The DB has a unique partial index on (student_id) WHERE status = 'active',
+  // so if a concurrent request already inserted an active assignment, Postgres
+  // will reject this insert with a unique constraint error instead of creating a duplicate.
   const { data: assignment, error: aErr } = await supabase
     .from("routine_assignments")
     .insert({
@@ -139,7 +142,13 @@ export async function quickAssignAction(data: {
     })
     .select()
     .single();
-  if (aErr || !assignment) return { error: "Error al crear la asignación" };
+  if (aErr || !assignment) {
+    // Check for unique constraint violation (concurrent assign race condition)
+    if (aErr?.code === "23505") {
+      return { error: "Este alumno ya tiene una rutina activa. Recargá la página e intentá de nuevo." };
+    }
+    return { error: "Error al crear la asignación" };
+  }
 
   // Generate sessions using shared helper
   const slots = buildSessionSlots(

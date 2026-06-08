@@ -144,10 +144,10 @@ export function Navbar({ profile, unreadCount = 0, unreadMessages = 0, notificat
             href="/dashboard/profile"
             className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-all duration-150"
           >
-            <div className="h-7 w-7 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
+            <div className="relative h-7 w-7 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
               style={{ background: "#534AB7" }}>
               {profile.avatar_url ? (
-                <Image src={profile.avatar_url} alt={profile.full_name ?? ""} fill sizes="40px" className="object-cover" />
+                <Image src={profile.avatar_url} alt={profile.full_name ?? ""} fill sizes="28px" className="object-cover" />
               ) : (
                 <span className="text-white text-xs font-bold">
                   {profile.full_name?.charAt(0).toUpperCase() ?? "?"}
@@ -200,12 +200,12 @@ export function Navbar({ profile, unreadCount = 0, unreadMessages = 0, notificat
             </Link>
             <Link
               href="/dashboard/profile"
-              className="h-8 w-8 rounded-full overflow-hidden flex items-center justify-center hover:ring-2 hover:ring-brand-300 transition-all flex-shrink-0"
+              className="relative h-8 w-8 rounded-full overflow-hidden flex items-center justify-center hover:ring-2 hover:ring-brand-300 transition-all flex-shrink-0"
               style={{ background: "#534AB7" }}
               title="Mi perfil"
             >
               {profile.avatar_url ? (
-                <Image src={profile.avatar_url} alt={profile.full_name ?? ""} fill sizes="40px" className="object-cover" />
+                <Image src={profile.avatar_url} alt={profile.full_name ?? ""} fill sizes="32px" className="object-cover" />
               ) : (
                 <span className="text-white font-bold text-xs">
                   {profile.full_name ? profile.full_name.charAt(0).toUpperCase() : "?"}

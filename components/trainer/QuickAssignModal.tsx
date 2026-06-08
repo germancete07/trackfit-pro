@@ -14,6 +14,8 @@ interface Props {
   templateName: string;
   students: Student[];
   onClose: () => void;
+  /** Pre-select this student in the dropdown (e.g. when opening from a student's profile) */
+  initialStudentId?: string;
 }
 
 const DAYS = [
@@ -30,16 +32,22 @@ function toLocalDateStr(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
 
-export function QuickAssignModal({ templateId, templateName, students, onClose }: Props) {
+export function QuickAssignModal({ templateId, templateName, students, onClose, initialStudentId }: Props) {
   const { showToast } = useToast();
   const today = toLocalDateStr(new Date());
 
-  const [studentId, setStudentId] = useState(students[0]?.id ?? "");
+  const [studentId, setStudentId] = useState<string>(() => {
+    if (initialStudentId && students.some(s => s.id === initialStudentId)) return initialStudentId;
+    return students[0]?.id ?? "";
+  });
   const [startDate, setStartDate] = useState(today);
   const [totalWeeks, setTotalWeeks] = useState(8);
-  const [trainingDays, setTrainingDays] = useState<number[]>(() =>
-    students[0]?.preferred_training_days ?? []
-  );
+  const [trainingDays, setTrainingDays] = useState<number[]>(() => {
+    const initial = initialStudentId
+      ? students.find(s => s.id === initialStudentId)
+      : students[0];
+    return initial?.preferred_training_days ?? [];
+  });
   const [hasDeload, setHasDeload] = useState(false);
   const [deloadWeeks, setDeloadWeeks] = useState(4);
   const [loading, setLoading] = useState(false);

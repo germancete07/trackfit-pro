@@ -8,7 +8,7 @@ import { ExerciseLibrary } from "@/components/trainer/ExerciseLibrary";
 export default async function RoutinesPage({
   searchParams,
 }: {
-  searchParams: { tab?: string };
+  searchParams: { tab?: string; assignTo?: string };
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -87,6 +87,7 @@ export default async function RoutinesPage({
         categories={categories ?? []}
         students={students ?? []}
         newRoutineHref="/dashboard/templates/new"
+        preselectedStudentId={searchParams.assignTo}
       />
     </div>
   );

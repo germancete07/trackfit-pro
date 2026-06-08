@@ -26,9 +26,11 @@ interface Props {
   /** If set, only show routines in this category (folder view) */
   categoryId?: string;
   newRoutineHref: string;
+  /** Pre-select this student when opening the Quick Assign modal */
+  preselectedStudentId?: string;
 }
 
-export function RoutineLibrary({ routines, categories, students, categoryId, newRoutineHref }: Props) {
+export function RoutineLibrary({ routines, categories, students, categoryId, newRoutineHref, preselectedStudentId }: Props) {
   const { showToast } = useToast();
   const [localRoutines, setLocalRoutines] = useState(routines);
   const [localCategories, setLocalCategories] = useState(categories);
@@ -126,6 +128,7 @@ export function RoutineLibrary({ routines, categories, students, categoryId, new
           templateName={assignModal.templateName}
           students={students}
           onClose={() => setAssignModal(null)}
+          initialStudentId={preselectedStudentId}
         />
       )}
 

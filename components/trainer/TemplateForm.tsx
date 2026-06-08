@@ -381,21 +381,21 @@ const ExerciseRow = React.memo(function ExerciseRow({
             )}
           </div>
 
-          {/* YouTube — local state + onBlur */}
+          {/* YouTube — local state synced to parent on every change */}
           <Input
             label="Video YouTube (opcional)"
             type="url"
             placeholder="https://youtube.com/watch?v=..."
             value={localYt}
-            onChange={e => setLocalYt(e.target.value)}
+            onChange={e => { setLocalYt(e.target.value); onUpdateField(id, "youtube_url", e.target.value); }}
             onBlur={() => onUpdateField(id, "youtube_url", localYt)}
           />
-          {/* Note — local state + onBlur */}
+          {/* Note — local state synced to parent on every change */}
           <Textarea
             label="Nota técnica (opcional)"
             placeholder="Clave técnica, errores comunes..."
             value={localNote}
-            onChange={e => setLocalNote(e.target.value)}
+            onChange={e => { setLocalNote(e.target.value); onUpdateField(id, "technical_note", e.target.value); }}
             onBlur={() => onUpdateField(id, "technical_note", localNote)}
             rows={2}
           />

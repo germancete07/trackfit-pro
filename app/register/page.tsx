@@ -164,6 +164,17 @@ export default function RegisterPage() {
       <p className="text-xs text-gray-400 mt-6 text-center max-w-xs">
         Al registrarte aceptás los términos de uso. Tu prueba gratuita dura 14 días.
       </p>
+
+      {/* Student disclaimer */}
+      <div
+        className="mt-4 w-full max-w-sm rounded-2xl px-4 py-3 text-center"
+        style={{ background: "rgba(83,74,183,0.08)", border: "0.5px solid rgba(83,74,183,0.2)" }}
+      >
+        <p className="text-xs text-gray-600 leading-relaxed">
+          <span className="font-bold" style={{ color: "#534AB7" }}>¿Sos alumno?</span>{" "}
+          Esta plataforma es solo para entrenadores. Si sos alumno, pedile el link de acceso a tu entrenador — él te enviará una invitación por email.
+        </p>
+      </div>
     </div>
   );
 }

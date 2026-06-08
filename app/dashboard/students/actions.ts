@@ -100,6 +100,26 @@ export async function inviteStudentAction(formData: FormData) {
 
   const admin = createAdminClient();
 
+  // ── Duplicate detection ──────────────────────────────────────────────────
+  const { data: existing } = await admin
+    .from("profiles")
+    .select("id, role, trainer_id")
+    .eq("email", email)
+    .maybeSingle();
+
+  if (existing) {
+    if (existing.role === "trainer") {
+      return { error: "Este email ya tiene una cuenta de entrenador en TrackFit. No puede ser alumno." };
+    }
+    if (existing.trainer_id && existing.trainer_id === user.id) {
+      return { error: "Este alumno ya está vinculado a tu cuenta. Podés encontrarlo en tu lista de alumnos." };
+    }
+    if (existing.trainer_id && existing.trainer_id !== user.id) {
+      return { error: "Este email ya tiene una cuenta de alumno vinculada a otro entrenador." };
+    }
+    // Profile exists but trainer_id is null (orphaned / incomplete invite) → allow re-invite below
+  }
+
   const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
     data: { role: "student", full_name: fullName, trainer_id: user.id },
   });

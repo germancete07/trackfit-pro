@@ -24,6 +24,8 @@ export function AuthHashHandler() {
         if (error) return;
         if (type === "recovery") {
           router.push("/auth/reset-password");
+        } else if (type === "invite") {
+          router.push("/accept-invite");
         } else {
           router.push("/dashboard");
         }

@@ -42,24 +42,33 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient();
 
-  // Re-fetch from DB to guarantee UTF-8 strings (webhook payload encoding can corrupt accented chars)
+  // Re-fetch from DB to guarantee UTF-8 strings.
+  // Supabase webhook JSON payloads can arrive with Latin-1/UTF-8 double-encoding that corrupts
+  // accented characters (e.g. "registrÃ³" instead of "registró"). A fresh DB read via
+  // supabase-js always returns correctly decoded UTF-8, bypassing the webhook encoding issue.
   let message: string = notification.message ?? "";
   let type: string = notification.type ?? "";
   let reference_id: string | undefined = notification.reference_id;
   let user_id: string = rawUserId;
 
   if (notifId) {
-    const { data: fresh } = await admin
+    const { data: fresh, error: fetchErr } = await admin
       .from("notifications")
       .select("user_id, message, type, reference_id")
       .eq("id", notifId)
       .single();
+    if (fetchErr) {
+      console.warn("[push/send] Re-fetch failed, push may contain corrupted chars:", fetchErr.message);
+    }
     if (fresh) {
       user_id = fresh.user_id;
-      message = fresh.message ?? message;
-      type = fresh.type ?? type;
-      reference_id = fresh.reference_id ?? reference_id;
+      // Prefer fresh DB values — never fall back to webhook payload for text fields
+      if (fresh.message !== null && fresh.message !== undefined) message = fresh.message;
+      if (fresh.type !== null && fresh.type !== undefined) type = fresh.type;
+      if (fresh.reference_id !== null && fresh.reference_id !== undefined) reference_id = fresh.reference_id;
     }
+  } else {
+    console.warn("[push/send] notifId missing in webhook payload — accented characters may be corrupted in push notification");
   }
 
   const { data: subs } = await admin
@@ -104,13 +113,28 @@ function typeToTitle(type: string) {
 
 function urlForType(type: string, referenceId?: string) {
   switch (type) {
-    case "session_logged":       return "/dashboard/students";
-    case "correction_submitted": return "/dashboard/corrections";
-    case "correction_reviewed":  return "/dashboard/corrections";
-    case "message_received":     return referenceId ? `/dashboard/chat/${referenceId}` : "/dashboard/chat";
-    case "assignment_completed": return referenceId ? `/dashboard/students/${referenceId}` : "/dashboard/students";
-    case "session_rescheduled":  return referenceId ? `/dashboard/students/${referenceId}` : "/dashboard/students";
-    case "routine_assigned":     return "/dashboard/my-sessions";
-    default:                     return "/dashboard/notifications";
+    // Trainer receives: student logged a session → go to that student's profile
+    case "session_logged":
+      return referenceId ? `/dashboard/students/${referenceId}` : "/dashboard";
+    // Trainer receives: student submitted a correction video
+    case "correction_submitted":
+      return referenceId ? `/dashboard/students/${referenceId}?tab=correcciones` : "/dashboard/corrections";
+    // Student receives: trainer reviewed their video
+    case "correction_reviewed":
+      return "/dashboard/profile?tab=videos";
+    // Any user: new message → open the chat thread
+    case "message_received":
+      return referenceId ? `/dashboard/chat/${referenceId}` : "/dashboard/chat";
+    // Trainer receives: student completed a cycle
+    case "assignment_completed":
+      return referenceId ? `/dashboard/students/${referenceId}` : "/dashboard";
+    // Trainer receives: session was rescheduled
+    case "session_rescheduled":
+      return referenceId ? `/dashboard/students/${referenceId}` : "/dashboard";
+    // Student receives: trainer assigned a new routine
+    case "routine_assigned":
+      return "/dashboard/my-sessions";
+    default:
+      return "/dashboard/notifications";
   }
 }

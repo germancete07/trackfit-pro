@@ -163,13 +163,13 @@ export function ChatView({ initialMessages, currentUserId, trainerId, studentId,
       {/* Input */}
       <form
         onSubmit={handleSend}
-        className="flex gap-2 px-4 py-3 border-t border-gray-100 bg-white/80 backdrop-blur-sm"
+        className="flex gap-2 px-4 py-3 border-t border-gray-100 dark:border-white/10 bg-white/80 dark:bg-[#1E1E2E]/90 backdrop-blur-sm"
       >
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder={`Mensaje a ${otherName}...`}
-          className="flex-1 h-11 rounded-xl border border-gray-200 bg-gray-50/80 px-3.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50"
+          className="flex-1 h-11 rounded-xl border border-gray-200 dark:border-white/[0.12] bg-gray-50 dark:bg-white/[0.08] px-3.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-brand-500/50"
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();

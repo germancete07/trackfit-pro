@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -14,14 +14,30 @@ interface Props {
 
 export function StudentQuickActions({ studentId, studentName, hasActiveRoutine, unreadMessages, pendingVideos }: Props) {
   const [open, setOpen] = useState(false);
+  const [openUpward, setOpenUpward] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const router = useRouter();
 
   const hasBadge = unreadMessages > 0 || pendingVideos > 0;
 
+  function handleToggle(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!open) {
+      const rect = buttonRef.current?.getBoundingClientRect();
+      if (rect) {
+        const spaceBelow = window.innerHeight - rect.bottom;
+        setOpenUpward(spaceBelow < 280);
+      }
+    }
+    setOpen((prev) => !prev);
+  }
+
   return (
     <div className="relative flex-shrink-0">
       <button
-        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(!open); }}
+        ref={buttonRef}
+        onClick={handleToggle}
         className={cn(
           "h-8 w-8 rounded-full flex items-center justify-center transition-colors relative",
           open ? "bg-brand-100 text-brand-600" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
@@ -41,11 +57,14 @@ export function StudentQuickActions({ studentId, studentName, hasActiveRoutine, 
       {open && (
         <>
           {/* Backdrop */}
-          <div className="fixed inset-0 z-40" onClick={(e) => { e.preventDefault(); setOpen(false); }} />
+          <div className="fixed inset-0 z-40" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(false); }} />
 
           {/* Action sheet */}
           <div
-              className="absolute right-0 top-9 z-50 rounded-2xl shadow-xl py-2 min-w-[200px]"
+              className={cn(
+                "absolute right-0 z-50 rounded-2xl shadow-xl py-2 min-w-[200px]",
+                openUpward ? "bottom-9" : "top-9"
+              )}
               style={{ background: "var(--surface-elevated)", border: "0.5px solid var(--surface-elevated-border)" }}
             >
             <p className="px-3 py-1.5 text-xs font-bold text-gray-400 uppercase tracking-wide border-b border-gray-100 mb-1">{studentName}</p>

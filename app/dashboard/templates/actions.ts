@@ -116,8 +116,14 @@ export async function deleteTemplateAction(id: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "No autenticado" };
 
-  await supabase.from("session_templates").delete().eq("id", id).eq("trainer_id", user.id);
-  revalidatePath("/dashboard/templates");
+  const { error } = await supabase
+    .from("session_templates")
+    .delete()
+    .eq("id", id)
+    .eq("trainer_id", user.id);
+
+  if (error) return { error: "Error al eliminar la rutina. Intentá de nuevo." };
+  revalidatePath("/dashboard/routines");
   return { success: true };
 }
 
@@ -154,10 +160,10 @@ export async function duplicateTemplateAction(id: string) {
 
   if (exes.length > 0) {
     const { data: insertedExes } = await supabase.from("template_exercises").insert(exes).select();
-    revalidatePath("/dashboard/templates");
+    revalidatePath("/dashboard/routines");
     return { success: true, template: { ...copy, template_exercises: insertedExes ?? [] } };
   }
-  revalidatePath("/dashboard/templates");
+  revalidatePath("/dashboard/routines");
   return { success: true, template: { ...copy, template_exercises: [] } };
 }
 

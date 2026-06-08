@@ -57,9 +57,10 @@ export function RoutineLibrary({ routines, categories, students, categoryId, new
   async function handleDelete(id: string) {
     if (!confirm("¿Eliminar esta rutina?")) return;
     setLoading(id + "-del");
-    await deleteTemplateAction(id);
-    setLocalRoutines((p) => p.filter((r) => r.id !== id));
+    const result = await deleteTemplateAction(id);
     setLoading(null);
+    if (result?.error) { showToast(result.error, "error"); return; }
+    setLocalRoutines((p) => p.filter((r) => r.id !== id));
     showToast("Rutina eliminada");
   }
 

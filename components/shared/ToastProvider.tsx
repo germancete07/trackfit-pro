@@ -55,13 +55,12 @@ function ToastItem({ toast }: { toast: Toast }) {
   return (
     <div
       className={cn(
-        "flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-xl shadow-black/10 border text-sm font-medium transition-all duration-300 pointer-events-auto",
-        "backdrop-blur-xl",
+        "flex items-center gap-2.5 px-4 py-3 rounded-2xl shadow-xl shadow-black/20 border text-sm font-medium transition-all duration-300 pointer-events-auto",
         visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2",
         {
-          success: "bg-white/90 border-green-100 text-gray-800",
-          error: "bg-white/90 border-red-100 text-gray-800",
-          info: "bg-white/90 border-brand-100 text-gray-800",
+          success: "bg-white dark:bg-[#1E1E2E] border-green-100 dark:border-green-800 text-gray-800 dark:text-white",
+          error:   "bg-white dark:bg-[#1E1E2E] border-red-100 dark:border-red-800 text-gray-800 dark:text-white",
+          info:    "bg-white dark:bg-[#1E1E2E] border-brand-200 dark:border-brand-800 text-gray-800 dark:text-white",
         }[toast.type]
       )}
     >

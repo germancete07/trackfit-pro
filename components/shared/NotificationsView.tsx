@@ -101,8 +101,8 @@ export function NotificationsView({ notifications: initialNotifications, userRol
               className={cn(
                 "flex items-start gap-3 p-3.5 rounded-2xl transition-all",
                 n.read
-                  ? "bg-white border border-gray-100 hover:bg-gray-50"
-                  : "bg-brand-50 border border-brand-100 hover:bg-brand-100/60"
+                  ? "bg-white border border-gray-100 hover:bg-gray-50 dark:bg-white/5 dark:border-white/[0.08] dark:hover:bg-white/[0.08]"
+                  : "bg-brand-50 border border-brand-100 hover:bg-brand-100/60 dark:bg-brand-500/10 dark:border-brand-500/25 dark:hover:bg-brand-500/15"
               )}
             >
               <span className="text-xl leading-none flex-shrink-0 mt-0.5">{ICONS[n.type]}</span>

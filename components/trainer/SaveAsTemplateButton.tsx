@@ -21,7 +21,7 @@ export function SaveAsTemplateButton({ sessionId, sessionName }: { sessionId: st
     setLoading(false);
     if (result?.error) showToast(result.error, "error");
     else {
-      showToast("Guardado como plantilla");
+      showToast("Guardado como rutina");
       setOpen(false);
     }
   }

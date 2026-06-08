@@ -169,6 +169,7 @@ export default async function DashboardPage() {
           weeklyCompleted: weeklyCompleted ?? 0,
           pendingCorrections: pendingCorrections ?? 0,
         }}
+        activeStudents={(students ?? []).length}
       />
     );
   }

@@ -195,9 +195,9 @@ export function SessionForm({ trainerId, students, defaultStudentId, templates =
             </div>
             <Input placeholder="Nombre del ejercicio" value={ex.name} onChange={(e) => updateExercise(i, "name", e.target.value)} required />
             <div className="grid grid-cols-3 gap-2">
-              <Input label="Series" type="number" min="1" max="20" value={ex.sets} onChange={(e) => updateExercise(i, "sets", parseInt(e.target.value) || 1)} />
-              <Input label="Reps" placeholder="8-12" value={ex.reps} onChange={(e) => updateExercise(i, "reps", e.target.value)} />
-              <Input label="Descanso (s)" type="number" min="0" value={ex.rest_seconds} onChange={(e) => updateExercise(i, "rest_seconds", parseInt(e.target.value) || 0)} />
+              <Input label="Series" type="number" inputMode="numeric" min="1" max="20" value={ex.sets} onChange={(e) => updateExercise(i, "sets", parseInt(e.target.value) || 1)} />
+              <Input label="Reps" placeholder="8-12" inputMode="numeric" value={ex.reps} onChange={(e) => updateExercise(i, "reps", e.target.value)} />
+              <Input label="Descanso (s)" type="number" inputMode="numeric" min="0" value={ex.rest_seconds} onChange={(e) => updateExercise(i, "rest_seconds", parseInt(e.target.value) || 0)} />
             </div>
             <Input label="Video YouTube (opcional)" type="url" placeholder="https://youtube.com/watch?v=..." value={ex.youtube_url} onChange={(e) => updateExercise(i, "youtube_url", e.target.value)} />
             <Textarea label="Nota tecnica (opcional)" placeholder="Clave técnica, errores comunes..." value={ex.technical_note} onChange={(e) => updateExercise(i, "technical_note", e.target.value)} rows={2} />

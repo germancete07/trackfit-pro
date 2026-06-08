@@ -18,6 +18,12 @@ export interface Profile {
   preferred_training_days: number[];
   theme_preference: "light" | "dark" | "system" | null;
   onboarding_completed: boolean | null;
+  plan: "starter" | "pro" | "elite" | null;
+  trial_ends_at: string | null;
+  plan_expires_at: string | null;
+  mp_preapproval_id: string | null;
+  mp_plan_key: string | null;
+  is_admin: boolean | null;
   created_at: string;
 }
 

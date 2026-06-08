@@ -211,6 +211,15 @@ export function Navbar({ profile, unreadCount = 0, unreadMessages = 0, notificat
                 </span>
               )}
             </Link>
+            <button
+              onClick={handleLogout}
+              className="h-8 w-8 rounded-full flex items-center justify-center transition-colors flex-shrink-0"
+              style={{ background: "rgba(0,0,0,0.06)", color: "#888" }}
+              title="Cerrar sesión"
+              aria-label="Cerrar sesión"
+            >
+              <LogoutIcon className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </header>

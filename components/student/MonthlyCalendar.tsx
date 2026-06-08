@@ -33,6 +33,13 @@ interface Props {
 
 const DAY_HEADERS = ["L", "M", "X", "J", "V", "S", "D"];
 
+const COLORS = {
+  completed: "#3B6D11",
+  pending:   "#534AB7",
+  deload:    "#854F0B",
+  rescheduled: "#444441",
+} as const;
+
 function toLocalDateStr(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -54,7 +61,6 @@ function getCalendarDays(year: number, month: number) {
   const startOffset = (firstDay.getDay() + 6) % 7;
 
   const days: { date: Date; currentMonth: boolean }[] = [];
-
   for (let i = startOffset - 1; i >= 0; i--) {
     const d = new Date(firstDay);
     d.setDate(d.getDate() - i - 1);
@@ -83,6 +89,23 @@ const MONTH_NAMES = [
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ];
 
+function getBadgeColor(session: CalSession): string {
+  if (session.original_date) return COLORS.rescheduled;
+  if (session.is_deload)     return COLORS.deload;
+  if (session.status === "completed") return COLORS.completed;
+  return COLORS.pending;
+}
+
+function getBadgeLabel(session: CalSession): string {
+  if (session.name) {
+    // Try to extract "Día N" pattern first
+    const match = session.name.match(/[Dd]ía\s*(\d+)/);
+    if (match) return `Día ${match[1]}`;
+    return session.name.slice(0, 6);
+  }
+  return `Día ${session.cycle_day}`;
+}
+
 export function MonthlyCalendar({ sessions, assignment, totalSessions, completedSessions }: Props) {
   const { showToast } = useToast();
   const today = toLocalDateStr(new Date());
@@ -105,10 +128,8 @@ export function MonthlyCalendar({ sessions, assignment, totalSessions, completed
   function isWithinAssignment(dateStr: string) {
     return dateStr >= assignStart && dateStr <= assignEnd;
   }
-
   function isTrainingDay(date: Date) {
-    const dow = date.getDay();
-    return assignment.training_days.includes(dow);
+    return assignment.training_days.includes(date.getDay());
   }
 
   function prevMonth() {
@@ -121,7 +142,6 @@ export function MonthlyCalendar({ sessions, assignment, totalSessions, completed
   }
 
   function canReschedule(s: CalSession) {
-    // Only pending sessions in current week or future
     return s.status === "pending" && s.scheduled_date >= weekMonday;
   }
 
@@ -149,38 +169,59 @@ export function MonthlyCalendar({ sessions, assignment, totalSessions, completed
 
   return (
     <div className="flex flex-col gap-4">
+
       {/* Progress bar */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between text-sm">
           <span className="font-bold text-gray-800">Progreso del ciclo</span>
-          <span className="text-brand-600 font-bold">{completedSessions} / {totalSessions}</span>
+          <span className="font-bold" style={{ color: COLORS.pending }}>{completedSessions} / {totalSessions}</span>
         </div>
-        <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+        <div className="h-3 rounded-full overflow-hidden" style={{ background: "rgba(0,0,0,0.08)" }}>
           <div
-            className="h-full bg-gradient-to-r from-brand-400 to-brand-600 rounded-full transition-all duration-500"
-            style={{ width: `${progressPct}%` }}
+            className="h-full rounded-full transition-all duration-500"
+            style={{ width: `${progressPct}%`, background: `linear-gradient(90deg, ${COLORS.pending}, #4239A3)` }}
           />
         </div>
         <p className="text-xs text-gray-400 text-right">{progressPct}% completado</p>
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-3 text-[11px] font-semibold">
-        <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded bg-green-500 inline-block" />Completado</span>
-        <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded bg-brand-500 inline-block" />Pendiente</span>
-        <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded bg-amber-400 inline-block" />Descarga</span>
-        <span className="flex items-center gap-1.5"><span className="text-[10px]">↻</span>Reagendado</span>
+      <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs font-semibold">
+        {[
+          { color: COLORS.completed,   label: "Completado" },
+          { color: COLORS.pending,     label: "Pendiente" },
+          { color: COLORS.deload,      label: "Descarga" },
+          { color: COLORS.rescheduled, label: "Reagendado" },
+        ].map(({ color, label }) => (
+          <span key={label} className="flex items-center gap-1.5">
+            <span
+              className="inline-block flex-shrink-0"
+              style={{
+                width: 14, height: 14,
+                borderRadius: 4,
+                background: color,
+              }}
+            />
+            <span style={{ color: "#374151" }}>{label}</span>
+          </span>
+        ))}
       </div>
 
       {/* Month navigation */}
       <div className="flex items-center justify-between">
-        <button onClick={prevMonth} className="h-9 w-9 rounded-xl flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors">
+        <button
+          onClick={prevMonth}
+          className="h-9 w-9 rounded-xl flex items-center justify-center text-gray-500 hover:bg-black/05 transition-colors"
+        >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
           </svg>
         </button>
         <h2 className="text-base font-black text-gray-900">{MONTH_NAMES[month]} {year}</h2>
-        <button onClick={nextMonth} className="h-9 w-9 rounded-xl flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors">
+        <button
+          onClick={nextMonth}
+          className="h-9 w-9 rounded-xl flex items-center justify-center text-gray-500 hover:bg-black/05 transition-colors"
+        >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
           </svg>
@@ -189,76 +230,109 @@ export function MonthlyCalendar({ sessions, assignment, totalSessions, completed
 
       {/* Calendar grid */}
       <div className="select-none">
+        {/* Day headers */}
         <div className="grid grid-cols-7 mb-1">
           {DAY_HEADERS.map((h) => (
             <div key={h} className="text-center text-[11px] font-bold text-gray-400 py-1">{h}</div>
           ))}
         </div>
 
-        <div className="grid grid-cols-7 gap-0.5">
+        <div className="grid grid-cols-7 gap-1">
           {days.map((day, idx) => {
             const dateStr = toLocalDateStr(day.date);
             const session = sessionsByDate[dateStr];
             const isToday = dateStr === today;
             const withinPeriod = isWithinAssignment(dateStr) && day.currentMonth;
-            const isRest = withinPeriod && !session && isTrainingDay(day.date);
-            const isRestDay = withinPeriod && !session && !isTrainingDay(day.date);
-            const isDeload = session?.is_deload;
-            const isRescheduled = !!session?.original_date;
+            const isScheduledTrainingDay = withinPeriod && !session && isTrainingDay(day.date);
             const clickable = session ? canReschedule(session) : false;
+            const badgeColor = session ? getBadgeColor(session) : null;
 
             return (
               <div
                 key={idx}
                 onClick={() => day.currentMonth && handleCellClick(dateStr)}
-                className={cn(
-                  "relative flex flex-col items-center justify-start pt-1 pb-1.5 min-h-[56px] rounded-xl transition-colors",
-                  !day.currentMonth && "opacity-30",
-                  clickable && "cursor-pointer active:scale-95 hover:bg-gray-50",
-                  isToday && !session && "ring-2 ring-brand-400 ring-offset-1",
-                  isDeload && session?.status !== "completed" && "bg-amber-50",
-                )}
+                style={{
+                  opacity: !day.currentMonth ? 0.3 : 1,
+                  cursor: clickable ? "pointer" : "default",
+                  border: isToday ? "2px solid #534AB7" : "2px solid transparent",
+                  background: isToday ? "rgba(83,74,183,0.08)" : "transparent",
+                  borderRadius: 12,
+                  minHeight: 62,
+                  padding: "4px 2px 6px",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  transition: "background 0.15s",
+                }}
               >
                 {/* Day number */}
-                <span className={cn(
-                  "text-[11px] font-semibold leading-none mb-1",
-                  isToday ? "text-brand-600 font-black" : "text-gray-400",
-                  !day.currentMonth && "text-gray-300",
-                )}>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: isToday ? 900 : 600,
+                    color: isToday ? "#534AB7" : "#9CA3AF",
+                    lineHeight: 1,
+                    marginBottom: 4,
+                  }}
+                >
                   {day.date.getDate()}
                 </span>
 
                 {/* Session badge */}
-                {session && (
-                  <div className={cn(
-                    "rounded-lg px-1 py-0.5 text-[9px] font-black leading-none text-center w-full max-w-[44px] truncate",
-                    session.status === "completed" && !isDeload && "bg-green-500 text-white",
-                    session.status === "completed" && isDeload && "bg-amber-400 text-white",
-                    session.status !== "completed" && !isDeload && (
-                      isToday ? "bg-brand-500 text-white" : "bg-gray-200 text-gray-600"
-                    ),
-                    session.status !== "completed" && isDeload && "bg-amber-400/70 text-amber-900",
-                  )}>
-                    {session.name ? session.name.slice(0, 5) : `D${session.cycle_day}`}
+                {session && badgeColor && (
+                  <div
+                    style={{
+                      background: badgeColor,
+                      color: "#fff",
+                      borderRadius: 8,
+                      padding: "3px 5px",
+                      fontSize: 9,
+                      fontWeight: 900,
+                      lineHeight: 1.2,
+                      textAlign: "center",
+                      width: "100%",
+                      maxWidth: 46,
+                      overflow: "hidden",
+                      whiteSpace: "nowrap",
+                      textOverflow: "ellipsis",
+                      letterSpacing: "-0.2px",
+                    }}
+                    title={session.name || `Día ${session.cycle_day}`}
+                  >
+                    {getBadgeLabel(session)}
                   </div>
                 )}
 
-                {/* Deload label */}
-                {session && isDeload && !isRescheduled && (
-                  <span className="text-[8px] font-bold text-amber-600 leading-none mt-0.5">↓</span>
-                )}
-
                 {/* Rescheduled indicator */}
-                {session && isRescheduled && (
-                  <span className="text-[10px] font-bold text-blue-500 leading-none mt-0.5" title="Reagendado">↻</span>
+                {session?.original_date && (
+                  <span
+                    style={{ fontSize: 10, fontWeight: 800, color: COLORS.rescheduled, lineHeight: 1, marginTop: 2 }}
+                    title="Reagendado"
+                  >
+                    ↻
+                  </span>
                 )}
 
-                {/* Rest indicator */}
-                {(isRest || isRestDay) && (
-                  <div className={cn(
-                    "h-1.5 w-1.5 rounded-full mt-1",
-                    isRest ? "bg-gray-300" : "bg-gray-200",
-                  )} />
+                {/* Deload arrow (if not rescheduled) */}
+                {session?.is_deload && !session.original_date && (
+                  <span
+                    style={{ fontSize: 9, fontWeight: 800, color: COLORS.deload, lineHeight: 1, marginTop: 2 }}
+                  >
+                    ↓desc
+                  </span>
+                )}
+
+                {/* Dot: scheduled training day with no session (missed / upcoming empty slot) */}
+                {isScheduledTrainingDay && (
+                  <div
+                    style={{
+                      width: 7,
+                      height: 7,
+                      borderRadius: "50%",
+                      background: dateStr < today ? "rgba(0,0,0,0.18)" : "rgba(83,74,183,0.25)",
+                      marginTop: 4,
+                    }}
+                  />
                 )}
               </div>
             );
@@ -274,13 +348,13 @@ export function MonthlyCalendar({ sessions, assignment, totalSessions, completed
       {selectedSession && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setSelectedSession(null)} />
-          <div className="relative w-full max-w-md bg-white rounded-t-3xl p-6 pb-10 shadow-2xl mx-0">
+          <div className="relative w-full max-w-md rounded-t-3xl p-6 pb-10 shadow-2xl" style={{ background: "var(--surface-elevated, #fff)" }}>
             <h3 className="text-base font-bold text-gray-900">Reagendar rutina</h3>
-            <p className="text-sm text-brand-500 font-medium mt-0.5 mb-4">
+            <p className="text-sm font-medium mt-0.5 mb-4" style={{ color: COLORS.pending }}>
               {selectedSession.name || `Día ${selectedSession.cycle_day}`}
               {selectedSession.is_deload && " · Semana de descarga"}
               {selectedSession.original_date && (
-                <span className="text-blue-400 text-xs ml-1">
+                <span className="text-gray-400 text-xs ml-1">
                   · Original: {selectedSession.original_date}
                 </span>
               )}

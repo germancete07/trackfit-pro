@@ -25,6 +25,7 @@ interface Props {
   profile: Profile;
   students: StudentWithStatus[];
   stats: TrainerStats;
+  activeStudents: number;
 }
 
 const STATUS_DOT: Record<StudentWithStatus["status"], string> = {
@@ -49,13 +50,34 @@ function statusSubline(s: StudentWithStatus): { text: string; className: string 
   return { text: "Sin rutina hoy", className: "text-gray-400" };
 }
 
-export function TrainerDashboard({ profile, students, stats }: Props) {
+export function TrainerDashboard({ profile, students, stats, activeStudents }: Props) {
   const firstName = profile.full_name?.split(" ")[0] || "Entrenador";
   const trainedCount = students.filter(s => s.trainedToday).length;
   const totalStudents = students.length;
 
+  // Mini trial banner: only show when ≤7 days left on trial
+  const trialDaysLeft = profile.trial_ends_at
+    ? Math.max(0, Math.ceil((new Date(profile.trial_ends_at).getTime() - Date.now()) / 86400000))
+    : null;
+  const showTrialBanner = trialDaysLeft !== null && trialDaysLeft <= 7 && trialDaysLeft > 0;
+
   return (
     <div className="px-4 py-5 flex flex-col gap-5">
+      {/* Urgent trial banner — only ≤7 days remaining */}
+      {showTrialBanner && (
+        <Link href="/dashboard/settings">
+          <div
+            className="flex items-center justify-between rounded-2xl px-4 py-3 text-sm"
+            style={{ background: "rgba(245,158,11,0.10)", border: "0.5px solid rgba(245,158,11,0.30)" }}
+          >
+            <span className="font-medium text-amber-700">
+              ⏳ Tu prueba gratuita vence en <strong>{trialDaysLeft} {trialDaysLeft === 1 ? "día" : "días"}</strong>
+            </span>
+            <span className="font-bold text-amber-700 underline underline-offset-2">Suscribirte →</span>
+          </div>
+        </Link>
+      )}
+
       {/* Greeting */}
       <div>
         <h1 className="text-2xl font-black text-gray-900">Hola, {firstName} 👋</h1>
@@ -90,7 +112,7 @@ export function TrainerDashboard({ profile, students, stats }: Props) {
             </div>
             <div>
               <p className="text-sm font-black text-gray-800">Nueva rutina</p>
-              <p className="text-xs text-gray-400">Crear plantilla</p>
+              <p className="text-xs text-gray-400">Crear rutina</p>
             </div>
           </Card>
         </Link>
@@ -147,7 +169,7 @@ export function TrainerDashboard({ profile, students, stats }: Props) {
                     <div className="h-9 w-9 rounded-full bg-brand-100 overflow-hidden flex items-center justify-center flex-shrink-0 relative">
                       {s.avatar_url
                         ? <img src={s.avatar_url} alt={s.full_name} className="h-full w-full object-cover" />
-                        : <span className="text-brand-600 text-sm font-bold">{s.full_name.charAt(0).toUpperCase()}</span>}
+                        : <span className="text-brand-600 text-sm font-bold">{s.full_name?.charAt(0).toUpperCase() ?? "?"}</span>}
                       <span className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white ${STATUS_DOT[s.status]}`} />
                     </div>
                     <div className="flex-1 min-w-0">

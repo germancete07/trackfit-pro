@@ -1,6 +1,20 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+// Routes only accessible to trainers — students are redirected to /dashboard
+const TRAINER_ONLY_PREFIXES = [
+  "/dashboard/students",
+  "/dashboard/routines",
+  "/dashboard/calendar",
+  "/dashboard/exercises",
+  "/admin",
+];
+
+// Routes only accessible to students — trainers are redirected to /dashboard
+const STUDENT_ONLY_PREFIXES = [
+  "/dashboard/my-sessions",
+];
+
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -29,17 +43,51 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
+  // API routes and webhooks — never redirect, let the route handler deal with auth
+  if (pathname.startsWith("/api/")) {
+    return supabaseResponse;
+  }
+
   // Public routes
-  if (pathname === "/" || pathname.startsWith("/login") || pathname.startsWith("/auth")) {
+  const isPublic =
+    pathname === "/" ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/register") ||
+    pathname.startsWith("/auth");
+
+  if (isPublic) {
     if (user && pathname === "/") {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
     return supabaseResponse;
   }
 
-  // Protected routes
+  // Protected routes — must be authenticated
   if (!user) {
     return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  // Role-based access control — only fetch profile for role-gated routes
+  const isTrainerRoute = TRAINER_ONLY_PREFIXES.some((p) => pathname.startsWith(p));
+  const isStudentRoute = STUDENT_ONLY_PREFIXES.some((p) => pathname.startsWith(p));
+
+  if (isTrainerRoute || isStudentRoute) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    const role = profile?.role;
+
+    if (isTrainerRoute && role !== "trainer") {
+      // Student trying to access a trainer-only page
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+    if (isStudentRoute && role !== "student") {
+      // Trainer trying to access a student-only page
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
   }
 
   return supabaseResponse;

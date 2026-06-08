@@ -84,6 +84,7 @@ export function MeasurementsForm({ studentId, measurements: initial }: Props) {
                 key={f.key}
                 label={f.label}
                 type="number"
+                inputMode="decimal"
                 step="0.1"
                 placeholder={f.placeholder}
                 value={form[f.key]}

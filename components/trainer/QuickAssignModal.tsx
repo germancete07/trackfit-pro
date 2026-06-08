@@ -34,7 +34,6 @@ export function QuickAssignModal({ templateId, templateName, students, onClose }
   const { showToast } = useToast();
   const today = toLocalDateStr(new Date());
 
-  const [step, setStep] = useState<"confirm" | "assign">("confirm");
   const [studentId, setStudentId] = useState(students[0]?.id ?? "");
   const [startDate, setStartDate] = useState(today);
   const [totalWeeks, setTotalWeeks] = useState(8);
@@ -46,8 +45,12 @@ export function QuickAssignModal({ templateId, templateName, students, onClose }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // "existing routine" confirmation state
+  const [existingWarning, setExistingWarning] = useState<{ name: string; id: string } | null>(null);
+
   function handleStudentChange(id: string) {
     setStudentId(id);
+    setExistingWarning(null);
     const s = students.find(x => x.id === id);
     if (s?.preferred_training_days?.length) setTrainingDays(s.preferred_training_days);
   }
@@ -77,7 +80,7 @@ export function QuickAssignModal({ templateId, templateName, students, onClose }
     return count;
   }, [startDate, trainingDays, totalWeeks]);
 
-  async function handleAssign() {
+  async function doAssign(force = false) {
     if (!studentId) { setError("Seleccioná un alumno"); return; }
     if (trainingDays.length === 0) { setError("Seleccioná al menos un día"); return; }
     setLoading(true);
@@ -85,9 +88,18 @@ export function QuickAssignModal({ templateId, templateName, students, onClose }
     const result = await quickAssignAction({
       studentId, templateId, startDate, trainingDays, totalWeeks,
       deloadEveryWeeks: hasDeload ? deloadWeeks : null,
+      force,
     });
     setLoading(false);
-    if (result?.error) { setError(result.error); return; }
+
+    if ("existingRoutine" in result) {
+      setExistingWarning(result.existingRoutine);
+      return;
+    }
+    if ("error" in result) {
+      setError(result.error);
+      return;
+    }
     showToast("Rutina asignada correctamente");
     onClose();
   }
@@ -99,9 +111,9 @@ export function QuickAssignModal({ templateId, templateName, students, onClose }
 
       {/* Sheet */}
       <div
-          className="relative w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[92vh] overflow-y-auto"
-          style={{ background: "var(--surface-elevated)", border: "0.5px solid var(--surface-elevated-border)" }}
-        >
+        className="relative w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[92vh] overflow-y-auto"
+        style={{ background: "var(--surface-elevated)", border: "0.5px solid var(--surface-elevated-border)" }}
+      >
         {/* Handle */}
         <div className="flex justify-center pt-3 pb-1 sm:hidden">
           <div className="h-1 w-10 bg-gray-200 rounded-full" />
@@ -123,6 +135,40 @@ export function QuickAssignModal({ templateId, templateName, students, onClose }
 
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 text-sm text-red-600">{error}</div>
+          )}
+
+          {/* ── Existing routine warning ── */}
+          {existingWarning && (
+            <div className="rounded-2xl p-4 flex flex-col gap-3"
+              style={{ background: "rgba(245,158,11,0.08)", border: "0.5px solid rgba(245,158,11,0.3)" }}>
+              <div className="flex items-start gap-2">
+                <span className="text-lg leading-none">⚠️</span>
+                <div>
+                  <p className="text-sm font-bold text-amber-800">Este alumno ya tiene una rutina activa</p>
+                  <p className="text-xs text-amber-700 mt-0.5">
+                    <span className="font-semibold">"{existingWarning.name}"</span> se cancelará al reemplazar.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setExistingWarning(null)}
+                  className="flex-1 h-10 rounded-xl text-sm font-semibold text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setExistingWarning(null); doAssign(true); }}
+                  disabled={loading}
+                  className="flex-1 h-10 rounded-xl text-sm font-bold text-white transition-colors disabled:opacity-60"
+                  style={{ background: "linear-gradient(135deg, #F59E0B, #D97706)" }}
+                >
+                  {loading ? "Asignando..." : "Sí, reemplazar"}
+                </button>
+              </div>
+            </div>
           )}
 
           {/* Alumno */}
@@ -172,6 +218,7 @@ export function QuickAssignModal({ templateId, templateName, students, onClose }
               <label className="text-sm font-semibold text-gray-700">Semanas</label>
               <input
                 type="number"
+                inputMode="numeric"
                 min="1" max="52"
                 value={totalWeeks}
                 onChange={e => setTotalWeeks(parseInt(e.target.value) || 1)}
@@ -193,7 +240,9 @@ export function QuickAssignModal({ templateId, templateName, students, onClose }
               <div className="flex items-center gap-1 ml-auto">
                 <span className="text-xs text-gray-500">cada</span>
                 <input
-                  type="number" min="2" max="12"
+                  type="number"
+                  inputMode="numeric"
+                  min="2" max="12"
                   value={deloadWeeks}
                   onChange={e => setDeloadWeeks(parseInt(e.target.value) || 4)}
                   className="h-8 w-14 rounded-lg border border-gray-200 bg-white px-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
@@ -212,15 +261,17 @@ export function QuickAssignModal({ templateId, templateName, students, onClose }
             </div>
           )}
 
-          <Button
-            size="lg"
-            className="w-full"
-            onClick={handleAssign}
-            loading={loading}
-            disabled={trainingDays.length === 0 || !studentId}
-          >
-            Asignar rutina
-          </Button>
+          {!existingWarning && (
+            <Button
+              size="lg"
+              className="w-full"
+              onClick={() => doAssign(false)}
+              loading={loading}
+              disabled={trainingDays.length === 0 || !studentId}
+            >
+              Asignar rutina
+            </Button>
+          )}
         </div>
       </div>
     </div>

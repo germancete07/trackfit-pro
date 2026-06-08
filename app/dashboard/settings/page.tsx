@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
+import { PlanInfo } from "@/components/trainer/PlanInfo";
 import type { Profile } from "@/lib/types";
 
 export default async function SettingsPage() {
@@ -28,6 +29,8 @@ export default async function SettingsPage() {
 
       {profile.role === "trainer" && (
         <>
+          {/* Plan info */}
+          <PlanInfoWrapper profile={profile as Profile} />
           <SpaceNameForm current={profile.space_name} />
           <InviteStudentForm />
         </>
@@ -75,5 +78,25 @@ export default async function SettingsPage() {
         </Card>
       )}
     </div>
+  );
+}
+
+// Wrapper to fetch active student count for PlanInfo
+async function PlanInfoWrapper({ profile }: { profile: Profile }) {
+  const supabase = await createClient();
+  const { count } = await supabase
+    .from("profiles")
+    .select("id", { count: "exact", head: true })
+    .eq("trainer_id", profile.id)
+    .eq("archived", false);
+
+  return (
+    <PlanInfo
+      plan={profile.plan}
+      trialEndsAt={profile.trial_ends_at}
+      planExpiresAt={profile.plan_expires_at}
+      activeStudents={count ?? 0}
+      mpPreapprovalId={profile.mp_preapproval_id}
+    />
   );
 }

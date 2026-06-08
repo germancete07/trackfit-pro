@@ -52,7 +52,7 @@ export default async function ChatPage() {
           <div className="h-9 w-9 rounded-full bg-brand-100 flex items-center justify-center overflow-hidden flex-shrink-0">
             {trainer?.avatar_url
               ? <img src={trainer.avatar_url} alt={trainer.full_name} className="h-full w-full object-cover" />
-              : <span className="text-brand-600 font-bold text-sm">{trainer?.full_name.charAt(0).toUpperCase()}</span>
+              : <span className="text-brand-600 font-bold text-sm">{trainer?.full_name?.charAt(0).toUpperCase() ?? "?"}</span>
             }
           </div>
           <div>
@@ -131,7 +131,7 @@ export default async function ChatPage() {
                   <div className="h-11 w-11 rounded-full bg-brand-100 flex-shrink-0 flex items-center justify-center overflow-hidden">
                     {student.avatar_url
                       ? <img src={student.avatar_url} alt={student.full_name} className="h-full w-full object-cover" />
-                      : <span className="text-brand-600 font-bold">{student.full_name.charAt(0).toUpperCase()}</span>
+                      : <span className="text-brand-600 font-bold">{student.full_name?.charAt(0).toUpperCase() ?? "?"}</span>
                     }
                   </div>
                   <div className="flex-1 min-w-0">

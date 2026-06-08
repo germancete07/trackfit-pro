@@ -1,6 +1,7 @@
 "use server";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { buildSessionSlots, buildSessionRows, buildExerciseRows } from "@/lib/assignRoutine";
 
 // ── Categories ───────────────────────────────────────────────
 
@@ -41,53 +42,6 @@ export async function renameCategoryAction(id: string, name: string) {
   return { success: true };
 }
 
-// ── Assign routine to student ────────────────────────────────
-
-export async function assignRoutineAction(
-  templateId: string,
-  studentId: string,
-  date: string | null
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: "No autenticado" };
-
-  const { data: template } = await supabase
-    .from("session_templates")
-    .select("*, template_exercises(*)")
-    .eq("id", templateId)
-    .eq("trainer_id", user.id)
-    .single();
-
-  if (!template) return { error: "Rutina no encontrada" };
-
-  const { data: session, error: sErr } = await supabase
-    .from("sessions")
-    .insert({
-      trainer_id: user.id,
-      student_id: studentId,
-      name: template.name,
-      scheduled_date: date || null,
-      status: "pending",
-    })
-    .select().single();
-
-  if (sErr || !session) return { error: "Error al asignar la rutina" };
-
-  const exes = ((template.template_exercises ?? []) as any[])
-    .sort((a, b) => a.sort_order - b.sort_order)
-    .map((ex, i) => ({
-      session_id: session.id,
-      name: ex.name, sets: ex.sets, reps: ex.reps,
-      rest_seconds: ex.rest_seconds, youtube_url: ex.youtube_url,
-      technical_note: ex.technical_note, sort_order: i,
-    }));
-
-  if (exes.length > 0) await supabase.from("exercises").insert(exes);
-
-  return { success: true };
-}
-
 // ── Move routine to category ─────────────────────────────────
 
 export async function moveRoutineToCategoryAction(routineId: string, categoryId: string | null) {
@@ -103,8 +57,12 @@ export async function moveRoutineToCategoryAction(routineId: string, categoryId:
   return { success: true };
 }
 
+// ── Quick assign (no redirect — for modal use) ───────────────
 
-// ── Quick assign (no redirect — for modal use) ────────────────────────────
+export type QuickAssignResult =
+  | { success: true }
+  | { error: string }
+  | { existingRoutine: { name: string; id: string } };
 
 export async function quickAssignAction(data: {
   studentId: string;
@@ -113,7 +71,8 @@ export async function quickAssignAction(data: {
   trainingDays: number[];
   totalWeeks: number;
   deloadEveryWeeks: number | null;
-}): Promise<{ error?: string; success?: boolean }> {
+  force?: boolean;
+}): Promise<QuickAssignResult> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "No autenticado" };
@@ -127,12 +86,32 @@ export async function quickAssignAction(data: {
     .single();
   if (!template) return { error: "Rutina no encontrada" };
 
-  await supabase.from("routine_assignments")
+  // Check for existing active assignment (unless force=true)
+  if (!data.force) {
+    const { data: existing } = await supabase
+      .from("routine_assignments")
+      .select("id, session_templates(name)")
+      .eq("trainer_id", user.id)
+      .eq("student_id", data.studentId)
+      .eq("status", "active")
+      .maybeSingle();
+
+    if (existing) {
+      const existingName =
+        (existing.session_templates as { name?: string } | null)?.name ?? "una rutina activa";
+      return { existingRoutine: { name: existingName, id: existing.id } };
+    }
+  }
+
+  // Cancel existing active assignment
+  await supabase
+    .from("routine_assignments")
     .update({ status: "cancelled" })
     .eq("trainer_id", user.id)
     .eq("student_id", data.studentId)
     .eq("status", "active");
 
+  // Create new assignment
   const { data: assignment, error: aErr } = await supabase
     .from("routine_assignments")
     .insert({
@@ -149,61 +128,25 @@ export async function quickAssignAction(data: {
     .single();
   if (aErr || !assignment) return { error: "Error al crear la asignación" };
 
-  // Generate sessions
-  function getMondayUTC(dateStr: string): Date {
-    const d = new Date(dateStr + "T12:00:00Z");
-    const dow = d.getUTCDay();
-    const offset = dow === 0 ? -6 : 1 - dow;
-    d.setUTCDate(d.getUTCDate() + offset);
-    return d;
-  }
-  function toDateStr(d: Date): string {
-    return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,"0")}-${String(d.getUTCDate()).padStart(2,"0")}`;
-  }
+  // Generate sessions using shared helper
+  const slots = buildSessionSlots(
+    data.startDate, data.trainingDays, data.totalWeeks, data.deloadEveryWeeks
+  );
+  if (slots.length === 0) return { error: "No se generaron sesiones" };
 
-  const startDate = new Date(data.startDate + "T12:00:00Z");
-  const monday = getMondayUTC(data.startDate);
-  const sortedDays = [...data.trainingDays].sort((a, b) => (a === 0 ? 7 : a) - (b === 0 ? 7 : b));
-  const sessionsToInsert: object[] = [];
-  let cycleDay = 1;
-
-  for (let w = 0; w < data.totalWeeks; w++) {
-    const isDeload = data.deloadEveryWeeks ? (w + 1) % data.deloadEveryWeeks === 0 : false;
-    for (const dow of sortedDays) {
-      const offset = dow === 0 ? 6 : dow - 1;
-      const sessionDate = new Date(monday);
-      sessionDate.setUTCDate(monday.getUTCDate() + w * 7 + offset);
-      if (sessionDate < startDate) continue;
-      sessionsToInsert.push({
-        trainer_id: user.id,
-        student_id: data.studentId,
-        name: template.name,
-        scheduled_date: toDateStr(sessionDate),
-        status: "pending",
-        assignment_id: assignment.id,
-        cycle_day: cycleDay,
-        is_deload: isDeload,
-      });
-      cycleDay++;
-    }
-  }
-
-  if (sessionsToInsert.length === 0) return { error: "No se generaron sesiones" };
-  const { data: inserted, error: sErr } = await supabase.from("sessions").insert(sessionsToInsert).select("id");
+  const sessionRows = buildSessionRows(
+    user.id, data.studentId, template.name, assignment.id, slots
+  );
+  const { data: inserted, error: sErr } = await supabase
+    .from("sessions").insert(sessionRows).select("id");
   if (sErr || !inserted) return { error: "Error al generar sesiones" };
 
-  const exercises = (template.template_exercises ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order);
+  const exercises = (template.template_exercises ?? []).sort(
+    (a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order
+  );
   if (exercises.length > 0) {
     await supabase.from("exercises").insert(
-      inserted.flatMap((sess: { id: string }) =>
-        exercises.map((ex: any) => ({
-          session_id: sess.id,
-          name: ex.name, sets: ex.sets, reps: ex.reps,
-          rest_seconds: ex.rest_seconds, youtube_url: ex.youtube_url,
-          technical_note: ex.technical_note, sort_order: ex.sort_order,
-          superset_group: ex.superset_group || null,
-        }))
-      )
+      buildExerciseRows(inserted.map((s: { id: string }) => s.id), exercises)
     );
   }
 

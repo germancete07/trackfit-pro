@@ -27,17 +27,24 @@ export async function createTemplateAction(
 
   if (tErr || !tpl) return { error: "Error al crear la rutina" };
 
-  await supabase.from("template_exercises").insert(
-    exercises.map((ex, i) => ({
-      template_id: tpl.id,
-      name: ex.name.trim(), sets: ex.sets, reps: ex.reps.trim(),
-      rest_seconds: ex.rest_seconds || null,
-      youtube_url: ex.youtube_url.trim() || null,
-      technical_note: ex.technical_note.trim() || null,
-      sort_order: i,
-      superset_group: ex.superset_group || null,
-    }))
-  );
+  if (exercises.length > 0) {
+    const { error: exErr } = await supabase.from("template_exercises").insert(
+      exercises.map((ex, i) => ({
+        template_id: tpl.id,
+        name: ex.name.trim(), sets: ex.sets, reps: ex.reps.trim(),
+        rest_seconds: ex.rest_seconds || null,
+        youtube_url: ex.youtube_url.trim() || null,
+        technical_note: ex.technical_note.trim() || null,
+        sort_order: i,
+        superset_group: ex.superset_group || null,
+      }))
+    );
+    if (exErr) {
+      // Template was created but exercises failed — delete the template to avoid orphan
+      await supabase.from("session_templates").delete().eq("id", tpl.id);
+      return { error: "Error al guardar los ejercicios. Intenta de nuevo." };
+    }
+  }
 
   revalidatePath("/dashboard/routines");
   // Return redirect target instead of calling redirect() — calling redirect() inside a Server Action
@@ -65,8 +72,17 @@ export async function updateTemplateAction(
 
   if (tErr) return { error: "Error al actualizar la rutina" };
 
-  await supabase.from("template_exercises").delete().eq("template_id", id);
-  await supabase.from("template_exercises").insert(
+  // Safe update strategy: INSERT new exercises first, DELETE old ones only on success.
+  // This prevents data loss if the insert fails — original exercises remain untouched.
+
+  // 1. Capture existing exercise IDs before any changes
+  const { data: existingExes } = await supabase
+    .from("template_exercises")
+    .select("id")
+    .eq("template_id", id);
+
+  // 2. Insert the new exercises
+  const { error: insertErr } = await supabase.from("template_exercises").insert(
     exercises.map((ex, i) => ({
       template_id: id,
       name: ex.name.trim(), sets: ex.sets, reps: ex.reps.trim(),
@@ -77,6 +93,19 @@ export async function updateTemplateAction(
       superset_group: ex.superset_group || null,
     }))
   );
+
+  if (insertErr) {
+    // Insert failed — original exercises are intact, nothing was lost
+    return { error: "Error al guardar los ejercicios. Los cambios no fueron aplicados." };
+  }
+
+  // 3. Insert succeeded — now safely delete the old exercise rows by their specific IDs
+  if (existingExes && existingExes.length > 0) {
+    await supabase
+      .from("template_exercises")
+      .delete()
+      .in("id", existingExes.map((e: { id: string }) => e.id));
+  }
 
   revalidatePath("/dashboard/routines");
   return { success: true };
@@ -111,7 +140,12 @@ export async function duplicateTemplateAction(id: string) {
 
   if (cErr || !copy) return { error: "Error al duplicar" };
 
-  const exes = (orig.template_exercises ?? []).map((ex: any) => ({
+  interface TemplateExerciseRow {
+    name: string; sets: number; reps: string; rest_seconds: number | null;
+    youtube_url: string | null; technical_note: string | null;
+    sort_order: number; superset_group: string | null;
+  }
+  const exes = (orig.template_exercises as TemplateExerciseRow[] ?? []).map((ex) => ({
     template_id: copy.id, name: ex.name, sets: ex.sets, reps: ex.reps,
     rest_seconds: ex.rest_seconds, youtube_url: ex.youtube_url,
     technical_note: ex.technical_note, sort_order: ex.sort_order,
@@ -134,10 +168,20 @@ export async function saveSessionAsTemplateAction(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "No autenticado" };
 
+  // Ownership check: verify the session belongs to this trainer
+  const { data: session } = await supabase
+    .from("sessions")
+    .select("id")
+    .eq("id", sessionId)
+    .eq("trainer_id", user.id)
+    .maybeSingle();
+
+  if (!session) return { error: "Sesión no encontrada" };
+
   const { data: exercises } = await supabase
     .from("exercises").select("*").eq("session_id", sessionId).order("sort_order");
 
-  if (!exercises) return { error: "No se encontraron ejercicios" };
+  if (!exercises || exercises.length === 0) return { error: "No se encontraron ejercicios" };
 
   const { data: tpl, error: tErr } = await supabase
     .from("session_templates")
@@ -146,7 +190,7 @@ export async function saveSessionAsTemplateAction(
 
   if (tErr || !tpl) return { error: "Error al guardar como plantilla" };
 
-  await supabase.from("template_exercises").insert(
+  const { error: exErr } = await supabase.from("template_exercises").insert(
     exercises.map((ex, i) => ({
       template_id: tpl.id, name: ex.name, sets: ex.sets, reps: ex.reps,
       rest_seconds: ex.rest_seconds, youtube_url: ex.youtube_url,
@@ -154,6 +198,12 @@ export async function saveSessionAsTemplateAction(
       superset_group: ex.superset_group || null,
     }))
   );
+
+  if (exErr) {
+    // Template created but exercises failed — clean up to avoid orphan
+    await supabase.from("session_templates").delete().eq("id", tpl.id);
+    return { error: "Error al copiar los ejercicios. Intenta de nuevo." };
+  }
 
   return { success: true };
 }

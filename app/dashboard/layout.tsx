@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
 import { Navbar } from "@/components/shared/Navbar";
 import { ToastProvider } from "@/components/shared/ToastProvider";
 import { TimerProvider } from "@/components/shared/TimerContext";
@@ -16,13 +17,17 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("*")
     .eq("id", user.id)
     .single();
 
-  if (!profile) redirect("/login");
+  if (!profile || profileError) {
+    // Sign out before redirecting — prevents login↔dashboard redirect loop
+    await supabase.auth.signOut();
+    redirect("/login?error=profile");
+  }
 
   const isTrainer = profile.role === "trainer";
   const trainerId = isTrainer ? user.id : profile.trainer_id;

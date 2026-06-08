@@ -27,8 +27,9 @@ export function LoginForm() {
       return;
     }
 
-    router.push("/dashboard");
-    router.refresh();
+    // Full page reload ensures the session cookie is read by the middleware
+    // before any server component runs — avoids login↔dashboard redirect loops
+    window.location.href = "/dashboard";
   }
 
   return (

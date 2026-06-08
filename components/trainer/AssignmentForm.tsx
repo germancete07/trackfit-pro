@@ -70,8 +70,12 @@ export function AssignmentForm({ templateId, students, initialStudentId }: Props
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // "existing routine" confirmation state
+  const [existingWarning, setExistingWarning] = useState<{ name: string; id: string } | null>(null);
+
   function handleStudentChange(id: string) {
     setStudentId(id);
+    setExistingWarning(null);
     const student = students.find(s => s.id === id);
     if (student && student.preferred_training_days.length > 0) {
       setTrainingDays(student.preferred_training_days);
@@ -109,8 +113,7 @@ export function AssignmentForm({ templateId, students, initialStudentId }: Props
     return { sessionCount: count, endDate: toLocalDateStr(lastDate) };
   }, [startDate, trainingDays, totalWeeks]);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function doSubmit(force = false) {
     if (!studentId) { setError("Seleccioná un alumno"); return; }
     if (trainingDays.length === 0) { setError("Seleccioná al menos un día de entrenamiento"); return; }
     if (totalWeeks < 1 || totalWeeks > 52) { setError("Duración entre 1 y 52 semanas"); return; }
@@ -118,16 +121,22 @@ export function AssignmentForm({ templateId, students, initialStudentId }: Props
     setLoading(true);
 
     const result = await createAssignmentAction({
-      studentId,
-      templateId,
-      startDate,
-      trainingDays,
-      totalWeeks,
+      studentId, templateId, startDate, trainingDays, totalWeeks,
       deloadEveryWeeks: hasDeload ? deloadWeeks : null,
+      force,
     });
 
     setLoading(false);
-    if (result?.error) {
+
+    // Success → createAssignmentAction does redirect(), so we'd never reach here normally.
+    // Only returned values are errors or existingRoutine.
+    if (!result) return; // redirect happened
+
+    if ("existingRoutine" in result) {
+      setExistingWarning(result.existingRoutine);
+      return;
+    }
+    if ("error" in result) {
       setError(result.error);
     }
   }
@@ -142,9 +151,43 @@ export function AssignmentForm({ templateId, students, initialStudentId }: Props
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+    <form onSubmit={(e) => { e.preventDefault(); doSubmit(false); }} className="flex flex-col gap-5">
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600">{error}</div>
+      )}
+
+      {/* ── Existing routine warning ── */}
+      {existingWarning && (
+        <div className="rounded-2xl p-4 flex flex-col gap-3"
+          style={{ background: "rgba(245,158,11,0.08)", border: "0.5px solid rgba(245,158,11,0.3)" }}>
+          <div className="flex items-start gap-2">
+            <span className="text-lg leading-none">⚠️</span>
+            <div>
+              <p className="text-sm font-bold text-amber-800">Este alumno ya tiene una rutina activa</p>
+              <p className="text-xs text-amber-700 mt-0.5">
+                <span className="font-semibold">"{existingWarning.name}"</span> se cancelará al reemplazar.
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setExistingWarning(null)}
+              className="flex-1 h-10 rounded-xl text-sm font-semibold text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => { setExistingWarning(null); doSubmit(true); }}
+              disabled={loading}
+              className="flex-1 h-10 rounded-xl text-sm font-bold text-white transition-colors disabled:opacity-60"
+              style={{ background: "linear-gradient(135deg, #F59E0B, #D97706)" }}
+            >
+              {loading ? "Asignando..." : "Sí, reemplazar"}
+            </button>
+          </div>
+        </div>
       )}
 
       <Card padding="md" className="flex flex-col gap-4">
@@ -168,6 +211,7 @@ export function AssignmentForm({ templateId, students, initialStudentId }: Props
           <div className="flex items-center gap-2">
             <input
               type="number"
+              inputMode="numeric"
               min="1" max="52"
               value={totalWeeks}
               onChange={(e) => setTotalWeeks(parseInt(e.target.value) || 1)}
@@ -234,6 +278,7 @@ export function AssignmentForm({ templateId, students, initialStudentId }: Props
             <span className="text-sm text-gray-500">Cada</span>
             <input
               type="number"
+              inputMode="numeric"
               min="2" max="12"
               value={deloadWeeks}
               onChange={(e) => setDeloadWeeks(parseInt(e.target.value) || 4)}
@@ -257,9 +302,11 @@ export function AssignmentForm({ templateId, students, initialStudentId }: Props
         </div>
       )}
 
-      <Button type="submit" size="lg" loading={loading} disabled={trainingDays.length === 0} className="w-full">
-        Asignar rutina con calendario
-      </Button>
+      {!existingWarning && (
+        <Button type="submit" size="lg" loading={loading} disabled={trainingDays.length === 0} className="w-full">
+          Asignar rutina con calendario
+        </Button>
+      )}
     </form>
   );
 }

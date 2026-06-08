@@ -49,7 +49,7 @@ export default async function TrainerChatPage({ params }: { params: { studentId:
         <div className="h-9 w-9 rounded-full bg-brand-100 flex items-center justify-center overflow-hidden flex-shrink-0">
           {student.avatar_url
             ? <img src={student.avatar_url} alt={student.full_name} className="h-full w-full object-cover" />
-            : <span className="text-brand-600 font-bold text-sm">{student.full_name.charAt(0).toUpperCase()}</span>
+            : <span className="text-brand-600 font-bold text-sm">{student.full_name?.charAt(0).toUpperCase() ?? "?"}</span>
           }
         </div>
         <div className="flex-1 min-w-0">

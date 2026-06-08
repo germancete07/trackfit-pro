@@ -18,7 +18,7 @@ export function PushRegistration({ userId }: { userId: string }) {
 
         const existing = await reg.pushManager.getSubscription();
         if (existing) {
-          await saveSub(existing, userId);
+          // Subscription already registered — no need to re-POST on every page load
           return;
         }
 
@@ -29,7 +29,7 @@ export function PushRegistration({ userId }: { userId: string }) {
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(vapidKey),
         });
-        await saveSub(sub, userId);
+        await saveSub(sub);
       } catch {}
     }
 
@@ -68,21 +68,21 @@ export function usePushPermission() {
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(vapidKey),
     });
-    await saveSub(sub, userId);
+    await saveSub(sub);
     return true;
   }
 
   return { requestPermission };
 }
 
-async function saveSub(sub: PushSubscription, userId: string) {
+async function saveSub(sub: PushSubscription) {
   const json = sub.toJSON();
   if (!json.endpoint || !json.keys) return;
   await fetch("/api/push/subscribe", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      userId,
+      // userId is intentionally omitted — the server derives it from the session cookie
       endpoint: json.endpoint,
       p256dh: json.keys.p256dh,
       auth: json.keys.auth,

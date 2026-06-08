@@ -32,12 +32,16 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-// Anti-flash script: applied before first paint to avoid white flash in dark mode
+// Anti-flash script: applied before first paint to avoid white flash in dark mode.
+// Dark mode only applies inside the dashboard — public pages (landing, login,
+// register) are always light, so we never add the `dark` class outside /dashboard.
 const themeScript = `
 try {
+  var isDashboard = window.location.pathname.indexOf('/dashboard') === 0;
   var stored = localStorage.getItem('tf-theme');
   var theme = stored || 'system';
-  if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+  var wantsDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  if (isDashboard && wantsDark) {
     document.documentElement.classList.add('dark');
   } else {
     document.documentElement.classList.remove('dark');

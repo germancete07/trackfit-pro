@@ -1,19 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import webpush from "web-push";
 import { createAdminClient } from "@/lib/supabase/admin";
+import crypto from "crypto";
 
 const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!;
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY!;
-const WEBHOOK_SECRET = process.env.PUSH_WEBHOOK_SECRET;
 
 if (VAPID_PUBLIC && VAPID_PRIVATE) {
   webpush.setVapidDetails("mailto:admin@trackfit.pro", VAPID_PUBLIC, VAPID_PRIVATE);
 }
 
+/** Fail-closed: rejects when secret is missing. Uses timing-safe comparison. */
+function verifyWebhookSecret(req: NextRequest): boolean {
+  const secret = process.env.PUSH_WEBHOOK_SECRET;
+  if (!secret) {
+    console.error(
+      "[push/send] CRÍTICO: PUSH_WEBHOOK_SECRET no está configurado. Request rechazado."
+    );
+    return false;
+  }
+  const provided = req.headers.get("x-webhook-secret") ?? "";
+  if (provided.length !== secret.length) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(secret));
+  } catch {
+    return false;
+  }
+}
+
 // Called by Supabase Database Webhook on notifications INSERT
 export async function POST(req: NextRequest) {
-  const secret = req.headers.get("x-webhook-secret");
-  if (WEBHOOK_SECRET && secret !== WEBHOOK_SECRET) {
+  if (!verifyWebhookSecret(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -74,28 +91,26 @@ export async function POST(req: NextRequest) {
 
 function typeToTitle(type: string) {
   switch (type) {
-    case "session_logged": return "TrackFit Pro";
-    case "correction_submitted": return "Video nuevo";
-    case "correction_reviewed": return "Corrección recibida";
-    case "message_received": return "Mensaje nuevo";
-    case "assignment_completed": return "Ciclo completado";
-    case "session_rescheduled": return "Rutina reagendada";
-    case "message_received": return "Mensaje nuevo";
-    case "routine_assigned": return "Nueva rutina asignada";
-    default: return "TrackFit Pro";
+    case "session_logged":        return "TrackFit Pro";
+    case "correction_submitted":  return "Video nuevo";
+    case "correction_reviewed":   return "Corrección recibida";
+    case "message_received":      return "Mensaje nuevo";
+    case "assignment_completed":  return "Ciclo completado";
+    case "session_rescheduled":   return "Rutina reagendada";
+    case "routine_assigned":      return "Nueva rutina asignada";
+    default:                      return "TrackFit Pro";
   }
 }
 
 function urlForType(type: string, referenceId?: string) {
   switch (type) {
-    case "session_logged": return "/dashboard/students";
+    case "session_logged":       return "/dashboard/students";
     case "correction_submitted": return "/dashboard/corrections";
-    case "correction_reviewed": return "/dashboard/corrections";
-    case "message_received": return referenceId ? `/dashboard/chat/${referenceId}` : "/dashboard/chat";
+    case "correction_reviewed":  return "/dashboard/corrections";
+    case "message_received":     return referenceId ? `/dashboard/chat/${referenceId}` : "/dashboard/chat";
     case "assignment_completed": return referenceId ? `/dashboard/students/${referenceId}` : "/dashboard/students";
-    case "session_rescheduled": return referenceId ? `/dashboard/students/${referenceId}` : "/dashboard/students";
-    case "message_received": return referenceId ? `/dashboard/chat/${referenceId}` : "/dashboard/chat";
-    case "routine_assigned": return "/dashboard/my-sessions";
-    default: return "/dashboard/notifications";
+    case "session_rescheduled":  return referenceId ? `/dashboard/students/${referenceId}` : "/dashboard/students";
+    case "routine_assigned":     return "/dashboard/my-sessions";
+    default:                     return "/dashboard/notifications";
   }
 }

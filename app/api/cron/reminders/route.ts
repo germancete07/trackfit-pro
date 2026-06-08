@@ -1,19 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 import webpush from "web-push";
 import { createAdminClient } from "@/lib/supabase/admin";
+import crypto from "crypto";
 
 const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!;
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY!;
-const CRON_SECRET = process.env.CRON_SECRET;
 
 if (VAPID_PUBLIC && VAPID_PRIVATE) {
   webpush.setVapidDetails("mailto:admin@trackfit.pro", VAPID_PUBLIC, VAPID_PRIVATE);
 }
 
+/** Fail-closed: rejects when secret is missing. Uses timing-safe comparison. */
+function verifyCronSecret(req: NextRequest): boolean {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) {
+    console.error(
+      "[cron/reminders] CRÍTICO: CRON_SECRET no está configurado. Request rechazado."
+    );
+    return false;
+  }
+  const expected = `Bearer ${secret}`;
+  const provided = req.headers.get("authorization") ?? "";
+  if (provided.length !== expected.length) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
+  } catch {
+    return false;
+  }
+}
+
 // Vercel Cron: runs every hour — GET /api/cron/reminders
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get("authorization");
-  if (CRON_SECRET && authHeader !== `Bearer ${CRON_SECRET}`) {
+  if (!verifyCronSecret(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

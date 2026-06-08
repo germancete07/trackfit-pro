@@ -5,6 +5,7 @@
 /* ── CSS Custom Properties ──────────────────────────────────────────── */
 
 :root {
+  color-scheme: light;
   --safe-top: env(safe-area-inset-top);
   --safe-bottom: env(safe-area-inset-bottom);
 
@@ -40,6 +41,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --card-bg: rgba(255, 255, 255, 0.05);
   --card-border: rgba(255, 255, 255, 0.08);
 
@@ -107,11 +109,11 @@
 
 .dark .text-gray-900 { color: #F2F2F0; }
 .dark .text-gray-800 { color: #E2E2E0; }
-.dark .text-gray-700 { color: #C8C8C6; }
-.dark .text-gray-600 { color: #A8A8A6; }
-.dark .text-gray-500 { color: #888886; }
-.dark .text-gray-400 { color: #686866; }
-.dark .text-gray-300 { color: #4A4A48; }
+.dark .text-gray-700 { color: rgba(255,255,255,0.78); }
+.dark .text-gray-600 { color: rgba(255,255,255,0.70); }
+.dark .text-gray-500 { color: rgba(255,255,255,0.60); }
+.dark .text-gray-400 { color: rgba(255,255,255,0.50); }
+.dark .text-gray-300 { color: rgba(255,255,255,0.35); }
 
 /* ── Dark mode — background overrides ──────────────────────────────── */
 

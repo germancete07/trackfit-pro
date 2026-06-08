@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
@@ -20,7 +20,9 @@ export function ChatView({ initialMessages, currentUserId, trainerId, studentId,
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const supabase = createClient();
+  // Stable client instance — createClient() at component level re-creates it on every render,
+  // making `supabase` an unstable dependency that breaks useCallback and useEffect deps.
+  const supabase = useMemo(() => createClient(), []);
 
   const markRead = useCallback(async () => {
     await supabase

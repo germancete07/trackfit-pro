@@ -81,13 +81,23 @@ export async function quickAssignAction(data: {
     return { error: "La duración debe estar entre 1 y 52 semanas" };
   }
 
-  const { data: template } = await supabase
-    .from("session_templates")
-    .select("*, template_exercises(*)")
-    .eq("id", data.templateId)
-    .eq("trainer_id", user.id)
-    .single();
+  // Verify template ownership AND student ownership in parallel
+  const [{ data: template }, { data: student }] = await Promise.all([
+    supabase
+      .from("session_templates")
+      .select("*, template_exercises(*)")
+      .eq("id", data.templateId)
+      .eq("trainer_id", user.id)
+      .single(),
+    supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", data.studentId)
+      .eq("trainer_id", user.id)
+      .maybeSingle(),
+  ]);
   if (!template) return { error: "Rutina no encontrada" };
+  if (!student) return { error: "Alumno no encontrado" };
 
   // Check for existing active assignment (unless force=true)
   if (!data.force) {

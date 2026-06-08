@@ -26,6 +26,9 @@ export async function updateProfileAction(data: {
 
 export async function changePasswordAction(newPassword: string) {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+  if (!newPassword || newPassword.length < 8) return { error: "La contraseña debe tener al menos 8 caracteres" };
   const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) return { error: error.message };
   return { success: true };

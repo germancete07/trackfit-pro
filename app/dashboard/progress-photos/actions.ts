@@ -29,8 +29,16 @@ export async function deletePhotoAction(photoId: string, photoUrl: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "No autenticado" };
 
-  await supabase.from("progress_photos").delete().eq("id", photoId).eq("student_id", user.id);
+  // Delete DB record first — if this fails, nothing is removed from Storage
+  const { error: dbErr } = await supabase
+    .from("progress_photos")
+    .delete()
+    .eq("id", photoId)
+    .eq("student_id", user.id);
 
+  if (dbErr) return { error: "Error al eliminar la foto" };
+
+  // DB deletion confirmed — now remove the file from Storage
   try {
     const url = new URL(photoUrl);
     const marker = "/progress-photos/";
@@ -39,7 +47,11 @@ export async function deletePhotoAction(photoId: string, photoUrl: string) {
       const storagePath = url.pathname.slice(idx + marker.length);
       await supabase.storage.from("progress-photos").remove([storagePath]);
     }
-  } catch {}
+  } catch {
+    // Storage removal failing is non-fatal (file can be cleaned up later)
+    // but DB record is already gone, so photo won't re-appear on next load
+    console.warn("[deletePhotoAction] Storage removal failed for:", photoUrl);
+  }
 
   revalidatePath("/dashboard/progress-photos");
   return { success: true };

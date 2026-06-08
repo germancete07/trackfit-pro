@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "./NotificationBell";
@@ -146,7 +147,7 @@ export function Navbar({ profile, unreadCount = 0, unreadMessages = 0, notificat
             <div className="h-7 w-7 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
               style={{ background: "#534AB7" }}>
               {profile.avatar_url ? (
-                <img src={profile.avatar_url} alt={profile.full_name} className="h-full w-full object-cover" />
+                <Image src={profile.avatar_url} alt={profile.full_name ?? ""} fill sizes="40px" className="object-cover" />
               ) : (
                 <span className="text-white text-xs font-bold">
                   {profile.full_name?.charAt(0).toUpperCase() ?? "?"}
@@ -204,7 +205,7 @@ export function Navbar({ profile, unreadCount = 0, unreadMessages = 0, notificat
               title="Mi perfil"
             >
               {profile.avatar_url ? (
-                <img src={profile.avatar_url} alt={profile.full_name} className="h-full w-full object-cover" />
+                <Image src={profile.avatar_url} alt={profile.full_name ?? ""} fill sizes="40px" className="object-cover" />
               ) : (
                 <span className="text-white font-bold text-xs">
                   {profile.full_name ? profile.full_name.charAt(0).toUpperCase() : "?"}

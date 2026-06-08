@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -52,6 +53,14 @@ export function ProgressPhotos({ photos: initial, studentId, readOnly = false }:
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Basic client-side size guard (10 MB) — Storage bucket policy is the hard limit
+    const MAX_BYTES = 10 * 1024 * 1024;
+    if (file.size > MAX_BYTES) {
+      showToast("La foto es demasiado grande (máx 10 MB)", "error");
+      e.target.value = "";
+      return;
+    }
+
     setUploading(true);
     const ext = file.name.split(".").pop() ?? "jpg";
     const filename = `${Date.now()}.${ext}`;
@@ -72,6 +81,8 @@ export function ProgressPhotos({ photos: initial, studentId, readOnly = false }:
     const result = await savePhotoAction(urlData.publicUrl, photoType, takenAt);
 
     if (result?.error) {
+      // DB save failed — clean up the orphaned file in Storage
+      await supabase.storage.from("progress-photos").remove([path]);
       showToast(result.error, "error");
     } else {
       showToast("Foto guardada");
@@ -180,7 +191,7 @@ export function ProgressPhotos({ photos: initial, studentId, readOnly = false }:
                       <div key={type} className="aspect-[3/4] rounded-xl overflow-hidden bg-gray-100 relative group">
                         {photo ? (
                           <>
-                            <img src={photo.photo_url} alt={label} className="w-full h-full object-cover" />
+                            <Image src={photo.photo_url} alt={label} fill sizes="33vw" className="object-cover" loading="lazy" />
                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-end justify-between p-1.5 opacity-0 group-hover:opacity-100">
                               <span className="text-[10px] font-bold text-white bg-black/40 px-1.5 py-0.5 rounded-full">{label}</span>
                               {!readOnly && (
@@ -253,13 +264,13 @@ export function ProgressPhotos({ photos: initial, studentId, readOnly = false }:
                         <div className="grid grid-cols-2 gap-2">
                           <div className="aspect-[3/4] rounded-xl overflow-hidden bg-gray-100 relative">
                             {photoA
-                              ? <img src={photoA.photo_url} alt={`${label} ${compareA}`} className="w-full h-full object-cover" />
+                              ? <Image src={photoA.photo_url} alt={`${label} ${compareA}`} fill sizes="50vw" className="object-cover" loading="lazy" />
                               : <div className="w-full h-full flex items-center justify-center"><span className="text-xs text-gray-300">Sin foto</span></div>}
                             <span className="absolute top-1.5 left-1.5 text-[9px] font-bold text-white bg-black/50 px-1.5 py-0.5 rounded-full">{compareA}</span>
                           </div>
                           <div className="aspect-[3/4] rounded-xl overflow-hidden bg-gray-100 relative">
                             {photoB
-                              ? <img src={photoB.photo_url} alt={`${label} ${compareB}`} className="w-full h-full object-cover" />
+                              ? <Image src={photoB.photo_url} alt={`${label} ${compareB}`} fill sizes="50vw" className="object-cover" loading="lazy" />
                               : <div className="w-full h-full flex items-center justify-center"><span className="text-xs text-gray-300">Sin foto</span></div>}
                             <span className="absolute top-1.5 left-1.5 text-[9px] font-bold text-white bg-black/50 px-1.5 py-0.5 rounded-full">{compareB}</span>
                           </div>

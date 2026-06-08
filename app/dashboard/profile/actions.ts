@@ -8,6 +8,10 @@ export async function updateProfileAction(data: {
   birth_date: string | null;
   training_goal: string | null;
   physical_limitations: string | null;
+  sex?: string | null;
+  weight_kg?: number | null;
+  height_cm?: number | null;
+  experience_level?: string | null;
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

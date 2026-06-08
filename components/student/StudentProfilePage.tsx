@@ -22,12 +22,12 @@ import { cn } from "@/lib/utils";
 import type { Profile, BodyMeasurement, ProgressPhoto, VideoCorrection } from "@/lib/types";
 
 const TABS = [
-  { key: "datos", label: "Datos" },
-  { key: "medidas", label: "Medidas" },
-  { key: "fotos", label: "Fotos" },
-  { key: "videos", label: "Videos" },
-  { key: "notif", label: "Notificaciones" },
-  { key: "contrasena", label: "Contraseña" },
+  { key: "datos",     label: "Datos" },
+  { key: "medidas",   label: "Medidas" },
+  { key: "fotos",     label: "Fotos" },
+  { key: "videos",    label: "Videos" },
+  { key: "notif",     label: "Notificaciones" },
+  { key: "contrasena",label: "Contraseña" },
 ] as const;
 
 const DAYS = [
@@ -39,6 +39,36 @@ const DAYS = [
   { value: 6, label: "S", full: "Sáb" },
   { value: 0, label: "D", full: "Dom" },
 ];
+
+const OBJECTIVES = [
+  "Hipertrofia",
+  "Fuerza",
+  "Pérdida de peso",
+  "Resistencia",
+  "General",
+];
+
+const EXPERIENCE_LEVELS = [
+  { key: "beginner",     label: "Principiante" },
+  { key: "intermediate", label: "Intermedio" },
+  { key: "advanced",     label: "Avanzado" },
+];
+
+const SEX_OPTIONS = [
+  { key: "male",              label: "Masculino" },
+  { key: "female",            label: "Femenino" },
+  { key: "prefer_not_to_say", label: "Prefiero no decir" },
+];
+
+function calcAge(birthDate: string): number | null {
+  if (!birthDate) return null;
+  const birth = new Date(birthDate);
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age >= 0 ? age : null;
+}
 
 interface Props {
   profile: Profile;
@@ -62,38 +92,50 @@ export function StudentProfilePage({
   const { showToast } = useToast();
   const { requestPermission } = usePushPermission();
 
-  // Datos form state
-  const [fullName, setFullName] = useState(profile.full_name);
-  const [birthDate, setBirthDate] = useState(profile.birth_date ?? "");
-  const [trainingGoal, setTrainingGoal] = useState(profile.training_goal ?? "");
+  // ── Datos form state ──────────────────────────────────────────
+  const [fullName, setFullName]                 = useState(profile.full_name ?? "");
+  const [birthDate, setBirthDate]               = useState(profile.birth_date ?? "");
+  const [sex, setSex]                           = useState<string>(profile.sex ?? "");
+  const [weightKg, setWeightKg]                 = useState<string>(profile.weight_kg != null ? String(profile.weight_kg) : "");
+  const [heightCm, setHeightCm]                 = useState<string>(profile.height_cm != null ? String(profile.height_cm) : "");
+  const [objective, setObjective]               = useState<string>(profile.training_goal ?? "");
+  const [experienceLevel, setExperienceLevel]   = useState<string>(profile.experience_level ?? "");
   const [physicalLimitations, setPhysicalLimitations] = useState(profile.physical_limitations ?? "");
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving]                     = useState(false);
 
-  // Training days
-  const [prefDays, setPrefDays] = useState<number[]>(profile.preferred_training_days ?? []);
+  // ── Training days ─────────────────────────────────────────────
+  const [prefDays, setPrefDays]   = useState<number[]>(profile.preferred_training_days ?? []);
   const [savingDays, setSavingDays] = useState(false);
 
-  // Push notifications
-  const [pushEnabled, setPushEnabled] = useState(false);
-  const [reminderHour, setReminderHour] = useState<string>(
+  // ── Push notifications ────────────────────────────────────────
+  const [pushEnabled, setPushEnabled]     = useState(false);
+  const [reminderHour, setReminderHour]   = useState<string>(
     profile.reminder_hour != null ? String(profile.reminder_hour) : ""
   );
   const [savingReminder, setSavingReminder] = useState(false);
 
-  // Password
-  const [newPassword, setNewPassword] = useState("");
+  // ── Password ──────────────────────────────────────────────────
+  const [newPassword, setNewPassword]       = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [changingPw, setChangingPw] = useState(false);
+  const [changingPw, setChangingPw]         = useState(false);
 
+  // ── Computed age ──────────────────────────────────────────────
+  const age = calcAge(birthDate);
+
+  // ── Handlers ─────────────────────────────────────────────────
   async function handleSaveDatos(e: React.FormEvent) {
     e.preventDefault();
     if (!fullName.trim()) return;
     setSaving(true);
     const r = await updateProfileAction({
-      full_name: fullName.trim(),
-      birth_date: birthDate || null,
-      training_goal: trainingGoal.trim() || null,
-      physical_limitations: physicalLimitations.trim() || null,
+      full_name:             fullName.trim(),
+      birth_date:            birthDate || null,
+      training_goal:         objective || null,
+      physical_limitations:  physicalLimitations.trim() || null,
+      sex:                   sex || null,
+      weight_kg:             weightKg ? parseFloat(weightKg) : null,
+      height_cm:             heightCm ? parseFloat(heightCm) : null,
+      experience_level:      experienceLevel || null,
     });
     setSaving(false);
     if (r?.error) showToast(r.error, "error");
@@ -158,7 +200,7 @@ export function StudentProfilePage({
                 "flex-shrink-0 px-3.5 py-1.5 rounded-full text-sm font-semibold transition-all duration-200 whitespace-nowrap",
                 activeTab === key
                   ? "bg-brand-500 text-white shadow-sm shadow-brand-500/30"
-                  : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                  : "bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-white/10 dark:text-white/60 dark:hover:bg-white/15"
               )}
             >
               {label}
@@ -167,14 +209,16 @@ export function StudentProfilePage({
         </div>
       </div>
 
-      <div className="h-px bg-gray-100 mx-4 mb-1" />
+      <div className="h-px bg-gray-100 dark:bg-white/10 mx-4 mb-1" />
 
-      {/* ── Datos ──────────────────────────────────────────────── */}
+      {/* ── Tab: Datos ─────────────────────────────────────────── */}
       {activeTab === "datos" && (
         <div className="px-4 py-4 flex flex-col gap-4">
           <Card padding="md">
-            <form onSubmit={handleSaveDatos} className="flex flex-col gap-4">
+            <form onSubmit={handleSaveDatos} className="flex flex-col gap-5">
               <h2 className="text-sm font-bold text-gray-700">Datos personales</h2>
+
+              {/* Nombre + email */}
               <Input
                 label="Nombre completo"
                 value={fullName}
@@ -187,30 +231,128 @@ export function StudentProfilePage({
                 disabled
                 className="opacity-60 cursor-not-allowed"
               />
-              <Input
-                label="Fecha de nacimiento"
-                type="date"
-                value={birthDate}
-                onChange={(e) => setBirthDate(e.target.value)}
-              />
-              <Textarea
-                label="Objetivo de entrenamiento"
-                placeholder="Ej: Ganar masa muscular, bajar de peso, mejorar resistencia..."
-                value={trainingGoal}
-                onChange={(e) => setTrainingGoal(e.target.value)}
-                rows={2}
-              />
+
+              {/* Fecha de nacimiento + edad auto */}
+              <div>
+                <Input
+                  label="Fecha de nacimiento"
+                  type="date"
+                  value={birthDate}
+                  onChange={(e) => setBirthDate(e.target.value)}
+                />
+                {age !== null && (
+                  <p className="mt-1 text-xs text-brand-600 font-semibold">
+                    {age} años
+                  </p>
+                )}
+              </div>
+
+              {/* Sexo */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-semibold text-gray-900 dark:text-white/90">Sexo</label>
+                <div className="flex gap-2 flex-wrap">
+                  {SEX_OPTIONS.map(({ key, label }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setSex(sex === key ? "" : key)}
+                      className={cn(
+                        "px-3.5 py-1.5 rounded-full text-sm font-semibold transition-all border",
+                        sex === key
+                          ? "bg-brand-500 text-white border-brand-500 shadow-sm"
+                          : "bg-gray-100 dark:bg-white/8 text-gray-500 dark:text-white/50 border-transparent"
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Peso + altura */}
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="Peso actual (kg)"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.1"
+                  min="20"
+                  max="300"
+                  placeholder="Ej: 75.5"
+                  value={weightKg}
+                  onChange={(e) => setWeightKg(e.target.value)}
+                />
+                <Input
+                  label="Altura (cm)"
+                  type="number"
+                  inputMode="numeric"
+                  step="1"
+                  min="100"
+                  max="250"
+                  placeholder="Ej: 175"
+                  value={heightCm}
+                  onChange={(e) => setHeightCm(e.target.value)}
+                />
+              </div>
+
+              {/* Objetivo */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-semibold text-gray-900 dark:text-white/90">Objetivo principal</label>
+                <div className="flex gap-2 flex-wrap">
+                  {OBJECTIVES.map((obj) => (
+                    <button
+                      key={obj}
+                      type="button"
+                      onClick={() => setObjective(objective === obj ? "" : obj)}
+                      className={cn(
+                        "px-3.5 py-1.5 rounded-full text-sm font-semibold transition-all border",
+                        objective === obj
+                          ? "bg-brand-500 text-white border-brand-500 shadow-sm"
+                          : "bg-gray-100 dark:bg-white/8 text-gray-500 dark:text-white/50 border-transparent"
+                      )}
+                    >
+                      {obj}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Nivel de experiencia */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-semibold text-gray-900 dark:text-white/90">Nivel de experiencia</label>
+                <div className="flex gap-2">
+                  {EXPERIENCE_LEVELS.map(({ key, label }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setExperienceLevel(experienceLevel === key ? "" : key)}
+                      className={cn(
+                        "flex-1 py-2 rounded-xl text-sm font-semibold transition-all border",
+                        experienceLevel === key
+                          ? "bg-brand-500 text-white border-brand-500 shadow-sm"
+                          : "bg-gray-100 dark:bg-white/8 text-gray-500 dark:text-white/50 border-transparent"
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Lesiones */}
               <Textarea
                 label="Lesiones o limitaciones físicas"
                 placeholder="Ej: Dolor lumbar, lesión en rodilla derecha, evitar saltos..."
                 value={physicalLimitations}
                 onChange={(e) => setPhysicalLimitations(e.target.value)}
-                rows={2}
+                rows={3}
               />
+
               <Button type="submit" loading={saving}>Guardar cambios</Button>
             </form>
           </Card>
 
+          {/* Training days */}
           <Card padding="md" className="flex flex-col gap-4">
             <div>
               <h2 className="text-sm font-bold text-gray-700">Mis días de entrenamiento</h2>
@@ -235,7 +377,7 @@ export function StudentProfilePage({
                     "flex-1 h-11 rounded-xl text-sm font-bold transition-all duration-150",
                     prefDays.includes(d.value)
                       ? "bg-brand-500 text-white shadow-sm shadow-brand-500/30"
-                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                      : "bg-gray-100 dark:bg-white/8 text-gray-500 dark:text-white/50 hover:bg-gray-200"
                   )}
                 >
                   {d.label}
@@ -255,7 +397,7 @@ export function StudentProfilePage({
         </div>
       )}
 
-      {/* ── Medidas ────────────────────────────────────────────── */}
+      {/* ── Tab: Medidas ───────────────────────────────────────── */}
       {activeTab === "medidas" && (
         <div className="px-4 py-4">
           {!measurements || measurements.length === 0 ? (
@@ -270,14 +412,14 @@ export function StudentProfilePage({
         </div>
       )}
 
-      {/* ── Fotos ──────────────────────────────────────────────── */}
+      {/* ── Tab: Fotos ─────────────────────────────────────────── */}
       {activeTab === "fotos" && (
         <div className="px-4 py-4">
           <ProgressPhotos photos={photos ?? []} studentId={userId} />
         </div>
       )}
 
-      {/* ── Videos ─────────────────────────────────────────────── */}
+      {/* ── Tab: Videos ────────────────────────────────────────── */}
       {activeTab === "videos" && (
         <StudentCorrectionsView
           corrections={corrections ?? []}
@@ -286,7 +428,7 @@ export function StudentProfilePage({
         />
       )}
 
-      {/* ── Notificaciones ─────────────────────────────────────── */}
+      {/* ── Tab: Notificaciones ────────────────────────────────── */}
       {activeTab === "notif" && (
         <div className="px-4 py-4 flex flex-col gap-4">
           <Card padding="md" className="flex flex-col gap-4">
@@ -319,7 +461,7 @@ export function StudentProfilePage({
               <select
                 value={reminderHour}
                 onChange={(e) => setReminderHour(e.target.value)}
-                className="h-11 flex-1 rounded-xl border border-gray-200/80 bg-gray-50/80 px-3.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500/50"
+                className="h-11 flex-1 rounded-xl border border-gray-200/80 bg-gray-50/80 dark:bg-white/8 dark:border-white/12 dark:text-white px-3.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500/50"
               >
                 <option value="">Sin recordatorio</option>
                 {Array.from({ length: 24 }, (_, h) => (
@@ -342,7 +484,7 @@ export function StudentProfilePage({
         </div>
       )}
 
-      {/* ── Contraseña ─────────────────────────────────────────── */}
+      {/* ── Tab: Contraseña ────────────────────────────────────── */}
       {activeTab === "contrasena" && (
         <div className="px-4 py-4">
           <Card padding="md">
@@ -353,7 +495,7 @@ export function StudentProfilePage({
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Mínimo 6 caracteres"
+                placeholder="Mínimo 8 caracteres"
                 required
               />
               <Input

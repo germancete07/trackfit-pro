@@ -16,6 +16,10 @@ export interface Profile {
   reminder_hour: number | null;
   space_name: string | null;
   preferred_training_days: number[];
+  sex: "male" | "female" | "prefer_not_to_say" | null;
+  weight_kg: number | null;
+  height_cm: number | null;
+  experience_level: "beginner" | "intermediate" | "advanced" | null;
   theme_preference: "light" | "dark" | "system" | null;
   onboarding_completed: boolean | null;
   plan: "starter" | "pro" | "elite" | null;

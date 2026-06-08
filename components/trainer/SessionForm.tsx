@@ -13,11 +13,14 @@ import type { SessionTemplate, TemplateExercise } from "@/lib/types";
 interface Student { id: string; full_name: string; email: string; }
 
 interface ExerciseDraft {
+  _id: number; // stable client-side key — stripped before server calls
   name: string; sets: number; reps: string;
   rest_seconds: number; youtube_url: string; technical_note: string;
 }
 
+let _nextId = 1;
 const emptyExercise = (): ExerciseDraft => ({
+  _id: _nextId++,
   name: "", sets: 3, reps: "8-12", rest_seconds: 90, youtube_url: "", technical_note: "",
 });
 
@@ -53,6 +56,7 @@ export function SessionForm({ trainerId, students, defaultStudentId, templates =
       tpl.template_exercises
         .sort((a, b) => a.sort_order - b.sort_order)
         .map((ex) => ({
+          _id: _nextId++,
           name: ex.name, sets: ex.sets, reps: ex.reps,
           rest_seconds: ex.rest_seconds ?? 90,
           youtube_url: ex.youtube_url ?? "", technical_note: ex.technical_note ?? "",
@@ -87,7 +91,7 @@ export function SessionForm({ trainerId, students, defaultStudentId, templates =
     }
 
     const { error: exErr } = await supabase.from("exercises").insert(
-      exercises.map((ex, i) => ({
+      exercises.map(({ _id, ...ex }, i) => ({
         session_id: session.id, name: ex.name.trim(), sets: ex.sets,
         reps: ex.reps.trim(), rest_seconds: ex.rest_seconds || null,
         youtube_url: ex.youtube_url.trim() || null,
@@ -167,7 +171,7 @@ export function SessionForm({ trainerId, students, defaultStudentId, templates =
 
       {showPicker && (
         <ExerciseLibraryPicker
-          onSelect={(ex) => setExercises(p => [...p, ex])}
+          onSelect={(ex) => setExercises(p => [...p, { ...ex, _id: _nextId++ }])}
           onClose={() => setShowPicker(false)}
         />
       )}
@@ -182,7 +186,7 @@ export function SessionForm({ trainerId, students, defaultStudentId, templates =
         </div>
 
         {exercises.map((ex, i) => (
-          <Card key={i} padding="md" className="flex flex-col gap-3">
+          <Card key={ex._id} padding="md" className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-brand-500 uppercase tracking-wide">Ejercicio {i + 1}</span>
               {exercises.length > 1 && (

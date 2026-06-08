@@ -44,7 +44,12 @@ export default async function ChatPage() {
       .select("*")
       .eq("trainer_id", profile.trainer_id)
       .eq("student_id", user.id)
-      .order("created_at", { ascending: true });
+      .order("created_at", { ascending: false })
+      .limit(100)
+      .then(({ data, error }) => ({
+        data: (data ?? []).reverse(),
+        error,
+      }));
 
     return (
       <div className="flex flex-col h-[calc(100vh-7rem)]">
@@ -82,7 +87,8 @@ export default async function ChatPage() {
 
   const studentIds = (students ?? []).map((s) => s.id);
 
-  // Fetch last message + unread count per student
+  // Fetch recent messages for inbox preview — capped to avoid loading full history.
+  // Limit = 20 per student: enough for last-message preview + accurate unread counts.
   const { data: allMessages } = studentIds.length > 0
     ? await supabase
         .from("messages")
@@ -90,6 +96,7 @@ export default async function ChatPage() {
         .eq("trainer_id", user.id)
         .in("student_id", studentIds)
         .order("created_at", { ascending: false })
+        .limit(studentIds.length * 20)
     : { data: [] };
 
   const msgs = (allMessages ?? []) as Message[];

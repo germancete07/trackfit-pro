@@ -6,8 +6,11 @@ import { inviteStudentAction, createStudentAction } from "@/app/dashboard/studen
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
+import { PlanLimitModal } from "@/components/shared/PlanLimitModal";
 
 type Mode = "invite" | "direct";
+
+interface PlanLimitData { current: number; limit: number; plan: string }
 
 export function NewStudentForm({ trainerId }: { trainerId: string }) {
   const router = useRouter();
@@ -15,6 +18,7 @@ export function NewStudentForm({ trainerId }: { trainerId: string }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [planLimit, setPlanLimit] = useState<PlanLimitData | null>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -26,14 +30,25 @@ export function NewStudentForm({ trainerId }: { trainerId: string }) {
       ? await inviteStudentAction(formData)
       : await createStudentAction(formData);
 
+    setLoading(false);
+
     if (result?.error) {
+      // Parse plan limit error code: "PLAN_LIMIT:current:limit:plan"
+      if (result.error.startsWith("PLAN_LIMIT:")) {
+        const parts = result.error.split(":");
+        setPlanLimit({
+          current: Number(parts[1]),
+          limit:   Number(parts[2]),
+          plan:    parts[3] ?? "starter",
+        });
+        return;
+      }
       setError(result.error);
-      setLoading(false);
       return;
     }
 
     const msg = mode === "invite"
-      ? "Invitacion enviada. El alumno recibira un email para crear su cuenta."
+      ? "Invitación enviada. El alumno recibirá un email para crear su cuenta."
       : "Alumno creado correctamente.";
     setSuccess(msg);
     setTimeout(() => router.push("/dashboard/students"), 1800);
@@ -41,6 +56,15 @@ export function NewStudentForm({ trainerId }: { trainerId: string }) {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Plan limit modal — shown instead of raw error code */}
+      {planLimit && (
+        <PlanLimitModal
+          currentPlan={planLimit.plan}
+          currentStudents={planLimit.current}
+          maxStudents={planLimit.limit}
+          onClose={() => setPlanLimit(null)}
+        />
+      )}
       {/* Mode selector */}
       <div className="flex bg-gray-100 rounded-xl p-1 gap-1">
         <button

@@ -15,7 +15,8 @@ export default async function SessionsPage() {
     .from("sessions")
     .select("*, student:profiles!student_id(full_name), exercises(id)")
     .eq("trainer_id", user.id)
-    .order("scheduled_date", { ascending: false });
+    .order("scheduled_date", { ascending: false })
+    .limit(200);
 
   return (
     <div className="px-4 py-5 flex flex-col gap-4">

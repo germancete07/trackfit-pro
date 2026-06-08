@@ -76,6 +76,7 @@ export function ExerciseLogger({ session, exercises, studentId }: Props) {
   const [expandedVideo, setExpandedVideo] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [finishLoading, setFinishLoading] = useState(false);
   const [prInfo, setPrInfo] = useState<{ exerciseName: string; weight: number } | null>(null);
   const [justSaved, setJustSaved] = useState<Set<string>>(new Set());
   const [summary, setSummary] = useState<{ totalWeight: number; avgRpe: number }>({ totalWeight: 0, avgRpe: 0 });
@@ -159,10 +160,15 @@ export function ExerciseLogger({ session, exercises, studentId }: Props) {
     }
   }
 
-  const allSaved = exercises.every((ex) => logs[ex.id]?.saved);
+  // Guard against vacuous truth: [].every(fn) is true in JS — session with 0 exercises
+  // would show the "Finalizar" button immediately without any work logged.
+  const allSaved = exercises.length > 0 && exercises.every((ex) => logs[ex.id]?.saved);
   const doneCount = exercises.filter((e) => logs[e.id]?.saved).length;
 
   async function finishSession() {
+    if (finishLoading) return;
+    setFinishLoading(true);
+
     // Compute summary stats from saved logs
     const savedLogs = exercises
       .filter(ex => logs[ex.id]?.saved)
@@ -175,7 +181,15 @@ export function ExerciseLogger({ session, exercises, studentId }: Props) {
       ? Math.round(rpeVals.reduce((a, b) => a + b, 0) / rpeVals.length * 10) / 10
       : 0;
     setSummary({ totalWeight, avgRpe });
-    await finishSessionAction(session.id);
+
+    const result = await finishSessionAction(session.id);
+    setFinishLoading(false);
+
+    if (!result || "error" in result) {
+      showToast(result?.error ?? "Error al guardar la sesión. Intentá de nuevo.");
+      return;
+    }
+
     setShowCelebration(true);
   }
 
@@ -568,7 +582,7 @@ export function ExerciseLogger({ session, exercises, studentId }: Props) {
 
         {/* Finish */}
         {allSaved && (
-          <Button size="lg" className="w-full md:max-w-sm md:mx-auto" onClick={finishSession}>
+          <Button size="lg" className="w-full md:max-w-sm md:mx-auto" onClick={finishSession} loading={finishLoading} disabled={finishLoading}>
             Finalizar rutina
           </Button>
         )}

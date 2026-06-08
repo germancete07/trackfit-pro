@@ -77,6 +77,9 @@ export async function quickAssignAction(data: {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "No autenticado" };
   if (data.trainingDays.length === 0) return { error: "Seleccioná al menos un día" };
+  if (!data.totalWeeks || data.totalWeeks < 1 || data.totalWeeks > 52) {
+    return { error: "La duración debe estar entre 1 y 52 semanas" };
+  }
 
   const { data: template } = await supabase
     .from("session_templates")

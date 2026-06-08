@@ -16,10 +16,14 @@ export async function finishSessionAction(sessionId: string) {
 
   if (!session) return { error: "Rutina no encontrada" };
 
-  await supabase
+  // Update with ownership filter re-asserted on the UPDATE itself (prevents TOCTOU)
+  const { error: updateErr } = await supabase
     .from("sessions")
     .update({ status: "completed" })
-    .eq("id", sessionId);
+    .eq("id", sessionId)
+    .eq("student_id", user.id);
+
+  if (updateErr) return { error: "Error al guardar la sesión. Intentá de nuevo." };
 
   // Check if the whole assignment cycle is now complete
   if (session.assignment_id) {

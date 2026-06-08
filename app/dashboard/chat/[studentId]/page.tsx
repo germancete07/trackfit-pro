@@ -28,12 +28,19 @@ export default async function TrainerChatPage({ params }: { params: { studentId:
   const { data: trainerProfile } = await supabase
     .from("profiles").select("full_name, avatar_url").eq("id", user.id).single();
 
+  // Load the most recent 100 messages — sufficient for initial render.
+  // TODO: implement infinite-scroll upward to load older messages on demand.
   const { data: messages } = await supabase
     .from("messages")
     .select("*")
     .eq("trainer_id", user.id)
     .eq("student_id", params.studentId)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false })
+    .limit(100)
+    .then(({ data, error }) => ({
+      data: (data ?? []).reverse(), // restore chronological order for the UI
+      error,
+    }));
 
   return (
     <div className="flex flex-col h-[calc(100vh-7rem)]">

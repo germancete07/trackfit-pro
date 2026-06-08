@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getEffectiveLimit } from "@/lib/plans";
 
-async function checkStudentLimit(trainerId: string): Promise<{ allowed: boolean; current: number; limit: number }> {
+async function checkStudentLimit(trainerId: string): Promise<{ allowed: boolean; current: number; limit: number; plan: string }> {
   const admin = createAdminClient();
 
   const [profileRes, countRes] = await Promise.all([
@@ -22,7 +22,7 @@ async function checkStudentLimit(trainerId: string): Promise<{ allowed: boolean;
   const current = countRes.count ?? 0;
   const limit = getEffectiveLimit(plan, trialEndsAt, planExpiresAt);
 
-  return { allowed: current < limit, current, limit };
+  return { allowed: current < limit, current, limit, plan };
 }
 
 export async function createStudentAction(formData: FormData) {
@@ -44,9 +44,9 @@ export async function createStudentAction(formData: FormData) {
   if (profile?.role !== "trainer") return { error: "No autorizado" };
 
   // Plan limit check
-  const { allowed, current, limit } = await checkStudentLimit(user.id);
+  const { allowed, current, limit, plan } = await checkStudentLimit(user.id);
   if (!allowed) {
-    return { error: `PLAN_LIMIT:${current}:${limit}` };
+    return { error: `PLAN_LIMIT:${current}:${limit}:${plan}` };
   }
 
   const admin = createAdminClient();
@@ -93,9 +93,9 @@ export async function inviteStudentAction(formData: FormData) {
   if (profile?.role !== "trainer") return { error: "No autorizado" };
 
   // Plan limit check
-  const { allowed, current, limit } = await checkStudentLimit(user.id);
+  const { allowed, current, limit, plan } = await checkStudentLimit(user.id);
   if (!allowed) {
-    return { error: `PLAN_LIMIT:${current}:${limit}` };
+    return { error: `PLAN_LIMIT:${current}:${limit}:${plan}` };
   }
 
   const admin = createAdminClient();

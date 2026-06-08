@@ -20,13 +20,20 @@ async function ProgressPageContent({ studentId }: { studentId: string }) {
   const eightWeeksAgo = new Date();
   eightWeeksAgo.setDate(eightWeeksAgo.getDate() - 56);
 
+  // PR calculation window: last 2 years is sufficient for personal records.
+  // Without a time window this query would return every log ever — O(years × sessions × exercises).
+  const twoYearsAgo = new Date();
+  twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+
   const [{ data: logs }, { data: recentLogs }] = await Promise.all([
-    // All logs for PRs
+    // Logs for PR calculation — capped to last 2 years
     supabase
       .from("exercise_logs")
       .select("weight_kg, rpe, completed_sets, session_id, logged_at, exercise_id, exercises(name, reps, muscle_group)")
       .eq("student_id", studentId)
-      .not("weight_kg", "is", null),
+      .gte("logged_at", twoYearsAgo.toISOString())
+      .not("weight_kg", "is", null)
+      .limit(5000),
     // Recent logs for charts (last 8 weeks)
     supabase
       .from("exercise_logs")

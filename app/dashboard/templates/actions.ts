@@ -116,13 +116,36 @@ export async function deleteTemplateAction(id: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "No autenticado" };
 
-  const { error } = await supabase
+  // Verify ownership before touching anything
+  const { data: tpl } = await supabase
+    .from("session_templates")
+    .select("id")
+    .eq("id", id)
+    .eq("trainer_id", user.id)
+    .maybeSingle();
+  if (!tpl) return { error: "Rutina no encontrada" };
+
+  // routine_assignments has ON DELETE RESTRICT on template_id, so we must remove
+  // all assignments referencing this template before we can delete the template.
+  // Sessions linked to those assignments use ON DELETE SET NULL, so they are safe.
+  const { error: assignErr } = await supabase
+    .from("routine_assignments")
+    .delete()
+    .eq("template_id", id)
+    .eq("trainer_id", user.id);
+  if (assignErr) return { error: "Error al eliminar rutina. Intentá de nuevo." };
+
+  // Now delete the template (template_exercises cascade automatically)
+  const { data: deleted, error: tplErr } = await supabase
     .from("session_templates")
     .delete()
     .eq("id", id)
-    .eq("trainer_id", user.id);
+    .eq("trainer_id", user.id)
+    .select("id");
 
-  if (error) return { error: "Error al eliminar la rutina. Intentá de nuevo." };
+  if (tplErr) return { error: "Error al eliminar la rutina. Intentá de nuevo." };
+  if (!deleted || deleted.length === 0) return { error: "No se pudo eliminar la rutina." };
+
   revalidatePath("/dashboard/routines");
   return { success: true };
 }

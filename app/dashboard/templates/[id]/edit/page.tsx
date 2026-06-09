@@ -11,7 +11,7 @@ export default async function EditTemplatePage({ params }: { params: { id: strin
 
   const { data: template } = await supabase
     .from("session_templates")
-    .select("*, template_exercises(*)")
+    .select("*, template_exercises(*), routine_days(*, template_exercises(*))")
     .eq("id", params.id)
     .eq("trainer_id", user.id)
     .single();

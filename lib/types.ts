@@ -31,6 +31,16 @@ export interface Profile {
   created_at: string;
 }
 
+export interface RoutineDay {
+  id: string;
+  template_id: string;
+  day_number: number;
+  name: string;
+  sort_order: number;
+  created_at: string;
+  template_exercises?: TemplateExercise[];
+}
+
 export interface RoutineCategory {
   id: string;
   trainer_id: string;
@@ -48,6 +58,7 @@ export interface SessionTemplate {
   category_id: string | null;
   created_at: string;
   template_exercises?: TemplateExercise[];
+  routine_days?: RoutineDay[];
   routine_categories?: RoutineCategory | null;
 }
 
@@ -62,6 +73,7 @@ export interface TemplateExercise {
   technical_note: string | null;
   sort_order: number;
   superset_group: string | null;
+  routine_day_id?: string | null;
 }
 
 export interface Message {
@@ -93,6 +105,9 @@ export interface Session {
   assignment_id: string | null;
   cycle_day: number | null;
   is_deload: boolean;
+  routine_day_id?: string | null;
+  routine_day_number?: number | null;
+  routine_day_name?: string | null;
   created_at: string;
   // joined
   student?: Profile;

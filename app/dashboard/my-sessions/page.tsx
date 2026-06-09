@@ -26,7 +26,7 @@ export default async function MyRoutinesPage() {
     assignment
       ? supabase
           .from("sessions")
-          .select("id, name, scheduled_date, status, cycle_day, is_deload")
+          .select("id, name, scheduled_date, status, cycle_day, is_deload, routine_day_name, routine_day_number")
           .eq("assignment_id", assignment.id)
           .order("scheduled_date")
       : Promise.resolve({ data: [] }),
@@ -94,7 +94,9 @@ export default async function MyRoutinesPage() {
                     <p className="font-black text-gray-900 truncate">{todaySession.name}</p>
                     <p className="text-xs text-gray-500">
                       {todaySession.is_deload ? "Semana de descarga · " : ""}
-                      Día {todaySession.cycle_day} del ciclo
+                      {(todaySession as { routine_day_name?: string }).routine_day_name
+                        ? (todaySession as { routine_day_name: string }).routine_day_name
+                        : `Día ${todaySession.cycle_day} del ciclo`}
                     </p>
                   </div>
                   <Button size="sm" className="flex-shrink-0">Entrenar</Button>
@@ -116,7 +118,12 @@ export default async function MyRoutinesPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-gray-900 truncate">{s.name}</p>
-                        <p className="text-xs text-gray-400">{s.scheduled_date ? formatDate(s.scheduled_date) : "Sin fecha"}</p>
+                        <p className="text-xs text-gray-400">
+                          {(s as { routine_day_name?: string }).routine_day_name
+                            ? `${(s as { routine_day_name: string }).routine_day_name} · `
+                            : ""}
+                          {s.scheduled_date ? formatDate(s.scheduled_date) : "Sin fecha"}
+                        </p>
                       </div>
                       {s.is_deload && (
                         <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full flex-shrink-0">Descarga</span>

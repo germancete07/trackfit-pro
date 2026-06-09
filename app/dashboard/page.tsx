@@ -186,7 +186,7 @@ export default async function DashboardPage() {
   ] = await Promise.all([
     supabase
       .from("sessions")
-      .select("id, name, scheduled_date, is_deload")
+      .select("id, name, scheduled_date, is_deload, routine_day_name")
       .eq("student_id", user.id)
       .eq("scheduled_date", today)
       .in("status", ["pending", "active"])

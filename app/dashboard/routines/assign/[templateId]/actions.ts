@@ -2,7 +2,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { buildSessionSlots, buildSessionRows, buildExerciseRows } from "@/lib/assignRoutine";
+import { buildSessionSlots, buildSessionRows, buildExerciseRows, type RoutineDayInfo } from "@/lib/assignRoutine";
 
 export type AssignmentResult =
   | { error: string }
@@ -25,11 +25,11 @@ export async function createAssignmentAction(data: {
   if (data.trainingDays.length === 0)
     return { error: "Seleccioná al menos un día de entrenamiento" };
 
-  // Verify template ownership AND student ownership in parallel
-  const [{ data: template }, { data: student }] = await Promise.all([
+  // Verify template ownership AND student ownership + fetch routine days in parallel
+  const [{ data: template }, { data: student }, { data: routineDays }] = await Promise.all([
     supabase
       .from("session_templates")
-      .select("*, template_exercises(*)")
+      .select("name")
       .eq("id", data.templateId)
       .eq("trainer_id", user.id)
       .single(),
@@ -39,6 +39,11 @@ export async function createAssignmentAction(data: {
       .eq("id", data.studentId)
       .eq("trainer_id", user.id)
       .maybeSingle(),
+    supabase
+      .from("routine_days")
+      .select("id, day_number, name, template_exercises(*)")
+      .eq("template_id", data.templateId)
+      .order("day_number"),
   ]);
   if (!template) return { error: "Rutina no encontrada" };
   if (!student) return { error: "Alumno no encontrado" };
@@ -68,9 +73,6 @@ export async function createAssignmentAction(data: {
     .eq("student_id", data.studentId)
     .eq("status", "active");
 
-  // Create new assignment
-  // The DB has a unique partial index on (student_id) WHERE status = 'active',
-  // so concurrent inserts are rejected at the DB level instead of creating duplicates.
   const { data: assignment, error: aErr } = await supabase
     .from("routine_assignments")
     .insert({
@@ -93,25 +95,44 @@ export async function createAssignmentAction(data: {
   }
 
   // Generate sessions using shared helper
+  const numDays = (routineDays ?? []).length || 1;
   const slots = buildSessionSlots(
-    data.startDate, data.trainingDays, data.totalWeeks, data.deloadEveryWeeks
+    data.startDate, data.trainingDays, data.totalWeeks, data.deloadEveryWeeks, numDays
   );
   if (slots.length === 0) return { error: "No se generaron sesiones con esos parámetros" };
 
+  const daysInfo: RoutineDayInfo[] = (routineDays ?? []).map((d: { id: string; day_number: number; name: string }) => ({
+    id: d.id, day_number: d.day_number, name: d.name,
+  }));
+
   const sessionRows = buildSessionRows(
-    user.id, data.studentId, template.name, assignment.id, slots
+    user.id, data.studentId, template.name, assignment.id, slots, daysInfo
   );
   const { data: insertedSessions, error: sErr } = await supabase
     .from("sessions").insert(sessionRows).select("id");
   if (sErr || !insertedSessions) return { error: "Error al generar las sesiones" };
 
-  const exercises = (template.template_exercises ?? []).sort(
-    (a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order
-  );
-  if (exercises.length > 0) {
-    await supabase.from("exercises").insert(
-      buildExerciseRows(insertedSessions.map((s: { id: string }) => s.id), exercises)
-    );
+  const sessionsWithDay = (insertedSessions as { id: string }[]).map((s, i) => ({
+    id: s.id,
+    routineDayNumber: slots[i]!.routineDayNumber,
+  }));
+
+  interface RawExercise {
+    name: string; sets: number; reps: string; rest_seconds: number | null;
+    youtube_url: string | null; technical_note: string | null;
+    sort_order: number; superset_group: string | null;
+  }
+
+  const dayExercises = (routineDays ?? []).map((d: { day_number: number; template_exercises: unknown[] }) => ({
+    day_number: d.day_number,
+    exercises: ([...(d.template_exercises ?? [])] as RawExercise[]).sort(
+      (a, b) => a.sort_order - b.sort_order
+    ),
+  }));
+
+  const exRows = buildExerciseRows(sessionsWithDay, dayExercises);
+  if (exRows.length > 0) {
+    await supabase.from("exercises").insert(exRows);
   }
 
   // Notify student

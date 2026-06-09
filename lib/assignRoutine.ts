@@ -19,14 +19,20 @@ export interface SessionSlot {
   date: string;
   isDeload: boolean;
   cycleDay: number;
+  /** Which routine day to use (1-based, cycles through all days) */
+  routineDayNumber: number;
 }
 
-/** Compute all session dates for a routine assignment */
+/**
+ * Compute all session dates for a routine assignment.
+ * @param numDays Total number of routine days to cycle through (default 1)
+ */
 export function buildSessionSlots(
   startDate: string,
   trainingDays: number[],
   totalWeeks: number,
-  deloadEveryWeeks: number | null
+  deloadEveryWeeks: number | null,
+  numDays: number = 1
 ): SessionSlot[] {
   const startTs = new Date(startDate + "T12:00:00Z");
   const monday = getMondayUTC(startDate);
@@ -41,7 +47,8 @@ export function buildSessionSlots(
       const sessionDate = new Date(monday);
       sessionDate.setUTCDate(monday.getUTCDate() + w * 7 + offset);
       if (sessionDate >= startTs) {
-        slots.push({ date: toDateStr(sessionDate), isDeload, cycleDay });
+        const routineDayNumber = numDays <= 1 ? 1 : ((cycleDay - 1) % numDays) + 1;
+        slots.push({ date: toDateStr(sessionDate), isDeload, cycleDay, routineDayNumber });
         cycleDay++;
       }
     }
@@ -49,23 +56,32 @@ export function buildSessionSlots(
   return slots;
 }
 
+export type RoutineDayInfo = { id: string; day_number: number; name: string };
+
 export function buildSessionRows(
   trainerId: string,
   studentId: string,
   templateName: string,
   assignmentId: string,
-  slots: SessionSlot[]
+  slots: SessionSlot[],
+  daysInfo: RoutineDayInfo[] = []
 ): object[] {
-  return slots.map(s => ({
-    trainer_id: trainerId,
-    student_id: studentId,
-    name: templateName,
-    scheduled_date: s.date,
-    status: "pending",
-    assignment_id: assignmentId,
-    cycle_day: s.cycleDay,
-    is_deload: s.isDeload,
-  }));
+  return slots.map(s => {
+    const dayInfo = daysInfo.find(d => d.day_number === s.routineDayNumber);
+    return {
+      trainer_id: trainerId,
+      student_id: studentId,
+      name: templateName,
+      scheduled_date: s.date,
+      status: "pending",
+      assignment_id: assignmentId,
+      cycle_day: s.cycleDay,
+      is_deload: s.isDeload,
+      routine_day_id: dayInfo?.id ?? null,
+      routine_day_number: s.routineDayNumber,
+      routine_day_name: dayInfo?.name ?? null,
+    };
+  });
 }
 
 export type DbExercise = {
@@ -75,13 +91,24 @@ export type DbExercise = {
   superset_group: string | null;
 };
 
+export type RoutineDayWithExercises = {
+  day_number: number;
+  exercises: DbExercise[];
+};
+
+/**
+ * Build exercise rows for the newly created sessions.
+ * Each session gets only the exercises belonging to its routine day.
+ */
 export function buildExerciseRows(
-  sessionIds: string[],
-  exercises: DbExercise[]
+  sessions: { id: string; routineDayNumber: number }[],
+  dayExercises: RoutineDayWithExercises[]
 ): object[] {
-  return sessionIds.flatMap(sid =>
-    exercises.map(ex => ({
-      session_id: sid,
+  return sessions.flatMap(session => {
+    const dayEx = dayExercises.find(d => d.day_number === session.routineDayNumber);
+    if (!dayEx || dayEx.exercises.length === 0) return [];
+    return dayEx.exercises.map(ex => ({
+      session_id: session.id,
       name: ex.name,
       sets: ex.sets,
       reps: ex.reps,
@@ -90,6 +117,6 @@ export function buildExerciseRows(
       technical_note: ex.technical_note,
       sort_order: ex.sort_order,
       superset_group: ex.superset_group || null,
-    }))
-  );
+    }));
+  });
 }

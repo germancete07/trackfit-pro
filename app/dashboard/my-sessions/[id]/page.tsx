@@ -23,6 +23,7 @@ export default async function StudentSessionPage({ params }: { params: { id: str
       session={session as any}
       exercises={exercises}
       studentId={user.id}
+      routineDayName={(session as any).routine_day_name ?? null}
     />
   );
 }

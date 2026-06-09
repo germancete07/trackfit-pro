@@ -1,7 +1,7 @@
 "use server";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { buildSessionSlots, buildSessionRows, buildExerciseRows } from "@/lib/assignRoutine";
+import { buildSessionSlots, buildSessionRows, buildExerciseRows, type RoutineDayInfo } from "@/lib/assignRoutine";
 
 // ── Categories ───────────────────────────────────────────────
 
@@ -82,10 +82,10 @@ export async function quickAssignAction(data: {
   }
 
   // Verify template ownership AND student ownership in parallel
-  const [{ data: template }, { data: student }] = await Promise.all([
+  const [{ data: template }, { data: student }, { data: routineDays }] = await Promise.all([
     supabase
       .from("session_templates")
-      .select("*, template_exercises(*)")
+      .select("name")
       .eq("id", data.templateId)
       .eq("trainer_id", user.id)
       .single(),
@@ -95,6 +95,11 @@ export async function quickAssignAction(data: {
       .eq("id", data.studentId)
       .eq("trainer_id", user.id)
       .maybeSingle(),
+    supabase
+      .from("routine_days")
+      .select("id, day_number, name, template_exercises(*)")
+      .eq("template_id", data.templateId)
+      .order("day_number"),
   ]);
   if (!template) return { error: "Rutina no encontrada" };
   if (!student) return { error: "Alumno no encontrado" };
@@ -151,25 +156,45 @@ export async function quickAssignAction(data: {
   }
 
   // Generate sessions using shared helper
+  const numDays = (routineDays ?? []).length || 1;
   const slots = buildSessionSlots(
-    data.startDate, data.trainingDays, data.totalWeeks, data.deloadEveryWeeks
+    data.startDate, data.trainingDays, data.totalWeeks, data.deloadEveryWeeks, numDays
   );
   if (slots.length === 0) return { error: "No se generaron sesiones" };
 
+  const daysInfo: RoutineDayInfo[] = (routineDays ?? []).map((d: { id: string; day_number: number; name: string }) => ({
+    id: d.id, day_number: d.day_number, name: d.name,
+  }));
+
   const sessionRows = buildSessionRows(
-    user.id, data.studentId, template.name, assignment.id, slots
+    user.id, data.studentId, template.name, assignment.id, slots, daysInfo
   );
   const { data: inserted, error: sErr } = await supabase
     .from("sessions").insert(sessionRows).select("id");
   if (sErr || !inserted) return { error: "Error al generar sesiones" };
 
-  const exercises = (template.template_exercises ?? []).sort(
-    (a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order
-  );
-  if (exercises.length > 0) {
-    await supabase.from("exercises").insert(
-      buildExerciseRows(inserted.map((s: { id: string }) => s.id), exercises)
-    );
+  // Pair each inserted session with its routine day number (1:1 with slots)
+  const sessionsWithDay = (inserted as { id: string }[]).map((s, i) => ({
+    id: s.id,
+    routineDayNumber: slots[i]!.routineDayNumber,
+  }));
+
+  interface RawExercise {
+    name: string; sets: number; reps: string; rest_seconds: number | null;
+    youtube_url: string | null; technical_note: string | null;
+    sort_order: number; superset_group: string | null;
+  }
+
+  const dayExercises = (routineDays ?? []).map((d: { day_number: number; template_exercises: unknown[] }) => ({
+    day_number: d.day_number,
+    exercises: ([...(d.template_exercises ?? [])] as RawExercise[]).sort(
+      (a, b) => a.sort_order - b.sort_order
+    ),
+  }));
+
+  const exRows = buildExerciseRows(sessionsWithDay, dayExercises);
+  if (exRows.length > 0) {
+    await supabase.from("exercises").insert(exRows);
   }
 
   await supabase.from("notifications").insert({

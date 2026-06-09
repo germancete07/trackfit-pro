@@ -9,7 +9,7 @@ interface StreakDay { date: string; label: string; trained: boolean; }
 
 interface Props {
   profile: Profile;
-  todaySession: { id: string; name: string; scheduled_date: string; is_deload: boolean } | null;
+  todaySession: { id: string; name: string; scheduled_date: string; is_deload: boolean; routine_day_name?: string | null } | null;
   trainedToday: boolean;
   trainedTodayName: string | null;
   nextSession: { id: string; name: string; scheduled_date: string } | null;
@@ -64,6 +64,9 @@ export function StudentDashboard({
                 {todaySession.is_deload ? "HOY · SEMANA DE DESCARGA" : "HOY"}
               </p>
               <h2 className="text-xl font-black text-white leading-tight">{todaySession.name}</h2>
+              {todaySession.routine_day_name && (
+                <p className="text-white/70 text-sm font-semibold mt-0.5">{todaySession.routine_day_name}</p>
+              )}
               <p className="text-white/60 text-sm mt-0.5">{formatDate(todaySession.scheduled_date)}</p>
             </div>
             <Link href={`/dashboard/my-sessions/${todaySession.id}`}>

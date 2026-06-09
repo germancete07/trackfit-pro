@@ -22,6 +22,7 @@ interface Props {
   session: Session;
   exercises: ExerciseWithLogs[];
   studentId: string;
+  routineDayName?: string | null;
 }
 
 interface LogState {
@@ -86,7 +87,7 @@ function parseReps(repsStr: string): number {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function ExerciseLogger({ session, exercises, studentId }: Props) {
+export function ExerciseLogger({ session, exercises, studentId, routineDayName }: Props) {
   const router = useRouter();
   const { showToast } = useToast();
   const { start: startTimer } = useTimer();
@@ -654,6 +655,9 @@ export function ExerciseLogger({ session, exercises, studentId }: Props) {
         {/* Session header + global progress */}
         <div>
           <h1 className="text-xl font-black text-gray-900 dark:text-white">{session.name}</h1>
+          {routineDayName && (
+            <p className="text-sm font-semibold text-brand-500 dark:text-brand-400 mt-0.5">{routineDayName}</p>
+          )}
           <div className="flex items-center gap-3 mt-1.5">
             <div className="flex-1 h-2 rounded-full overflow-hidden bg-black/10 dark:bg-white/10">
               <div

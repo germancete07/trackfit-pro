@@ -207,9 +207,23 @@ export function RoutineLibrary({ routines, categories, students, categoryId, new
                                 </svg>
                                 <p className="text-sm font-bold text-gray-900 truncate">{cat.name}</p>
                               </div>
-                              <p className="text-xs text-gray-400">
-                                {localRoutines.filter((r) => r.category_id === cat.id).length} rutinas
-                              </p>
+                              {(() => {
+                                const catRoutines = localRoutines.filter((r) => r.category_id === cat.id);
+                                const preview = catRoutines.slice(0, 2).map(r => r.name);
+                                const extra = catRoutines.length - preview.length;
+                                return (
+                                  <>
+                                    <p className="text-xs text-gray-400">
+                                      {catRoutines.length} rutina{catRoutines.length !== 1 ? "s" : ""}
+                                    </p>
+                                    {preview.length > 0 && (
+                                      <p className="text-[11px] text-gray-500 truncate mt-0.5">
+                                        {preview.join(" · ")}{extra > 0 ? ` · +${extra} más` : ""}
+                                      </p>
+                                    )}
+                                  </>
+                                );
+                              })()}
                             </div>
                             <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.preventDefault()}>
                               <button
@@ -411,9 +425,8 @@ function RoutineCard({ routine: r, categories, categoryId, moveTarget, loading, 
               <div key={day.id} className="flex flex-col gap-1">
                 <div className="flex items-center gap-1.5">
                   <span className="text-[11px] font-bold text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded-md flex-shrink-0">
-                    D{day.day_number}
+                    {day.name || `Día ${day.day_number}`}
                   </span>
-                  <span className="text-xs font-semibold text-gray-700 truncate">{day.name}</span>
                   <span className="text-[11px] text-gray-400 flex-shrink-0">{exs.length} ej.</span>
                 </div>
                 {shown.length > 0 && (

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Modal } from "@/components/ui/Modal";
 
 interface Props {
   currentPlan: string;
@@ -45,15 +46,8 @@ export function PlanLimitModal({ currentPlan, currentStudents, maxStudents, onCl
   }
 
   return (
-    <div className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center p-4">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-
-      {/* Sheet */}
-      <div
-        className="relative w-full max-w-sm rounded-3xl p-6 flex flex-col gap-5 shadow-2xl"
-        style={{ background: "var(--surface-elevated, #fff)" }}
-      >
+    <Modal title="Límite de alumnos alcanzado" onClose={onClose} zIndex={300} maxWidth={400}>
+      <div className="px-6 py-6 flex flex-col gap-5">
         {/* Icon */}
         <div className="flex justify-center">
           <div className="h-16 w-16 rounded-2xl flex items-center justify-center text-3xl"
@@ -64,8 +58,7 @@ export function PlanLimitModal({ currentPlan, currentStudents, maxStudents, onCl
 
         {/* Text */}
         <div className="text-center">
-          <h2 className="text-lg font-black text-gray-900">Límite de alumnos alcanzado</h2>
-          <p className="text-sm text-gray-500 mt-2 leading-relaxed">
+          <p className="text-sm text-gray-500 leading-relaxed">
             Tu plan <strong className="text-gray-700 capitalize">{currentPlan}</strong> permite hasta{" "}
             <strong className="text-gray-700">{maxStudents} alumnos</strong>. Actualmente tenés{" "}
             <strong className="text-gray-700">{currentStudents}</strong>.
@@ -107,6 +100,6 @@ export function PlanLimitModal({ currentPlan, currentStudents, maxStudents, onCl
           Cerrar
         </button>
       </div>
-    </div>
+    </Modal>
   );
 }

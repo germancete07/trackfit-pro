@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/shared/ToastProvider";
 import { quickAssignAction } from "@/app/dashboard/routines/actions";
 import { cn } from "@/lib/utils";
@@ -14,9 +15,7 @@ interface Props {
   templateName: string;
   students: Student[];
   onClose: () => void;
-  /** Pre-select this student in the dropdown (e.g. when opening from a student's profile) */
   initialStudentId?: string;
-  /** When true, hides the student selector and shows a fixed name chip */
   lockStudent?: boolean;
 }
 
@@ -54,8 +53,6 @@ export function QuickAssignModal({ templateId, templateName, students, onClose, 
   const [deloadWeeks, setDeloadWeeks] = useState(4);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  // "existing routine" confirmation state
   const [existingWarning, setExistingWarning] = useState<{ name: string; id: string } | null>(null);
 
   function handleStudentChange(id: string) {
@@ -115,174 +112,14 @@ export function QuickAssignModal({ templateId, templateName, students, onClose, 
   }
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-
-      {/* Sheet */}
-      <div
-        className="relative w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col"
-        style={{ background: "var(--surface-elevated)", border: "0.5px solid var(--surface-elevated-border)", maxHeight: "90vh" }}
-      >
-        {/* Handle (mobile) */}
-        <div className="flex justify-center pt-3 pb-1 sm:hidden flex-shrink-0">
-          <div className="h-1 w-10 bg-gray-200 rounded-full" />
-        </div>
-
-        {/* Sticky header */}
-        <div className="flex items-center justify-between px-5 pt-3 pb-4 flex-shrink-0 border-b border-gray-100">
-          <div>
-            <h2 className="text-base font-black text-gray-900">Asignar rutina</h2>
-            <p className="text-xs text-brand-500 font-medium truncate max-w-[220px]">{templateName}</p>
-          </div>
-          <button onClick={onClose} className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200">
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Scrollable body */}
-        <div className="overflow-y-auto flex-1">
-        <div className="px-5 pb-8 pt-4 flex flex-col gap-4">
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 text-sm text-red-600">{error}</div>
-          )}
-
-          {/* ── Existing routine warning ── */}
-          {existingWarning && (
-            <div className="rounded-2xl p-4 flex flex-col gap-3"
-              style={{ background: "rgba(245,158,11,0.08)", border: "0.5px solid rgba(245,158,11,0.3)" }}>
-              <div className="flex items-start gap-2">
-                <span className="text-lg leading-none">⚠️</span>
-                <div>
-                  <p className="text-sm font-bold text-amber-800">Este alumno ya tiene una rutina activa</p>
-                  <p className="text-xs text-amber-700 mt-0.5">
-                    <span className="font-semibold">"{existingWarning.name}"</span> se cancelará al reemplazar.
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setExistingWarning(null)}
-                  className="flex-1 h-10 rounded-xl text-sm font-semibold text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setExistingWarning(null); doAssign(true); }}
-                  disabled={loading}
-                  className="flex-1 h-10 rounded-xl text-sm font-bold text-white transition-colors disabled:opacity-60"
-                  style={{ background: "linear-gradient(135deg, #F59E0B, #D97706)" }}
-                >
-                  {loading ? "Asignando..." : "Sí, reemplazar"}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Alumno */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Alumno</label>
-            {lockStudent ? (
-              <div className="h-11 w-full rounded-xl border border-gray-100 bg-gray-50 px-3.5 flex items-center">
-                <span className="text-sm font-semibold text-gray-700">
-                  {students.find(s => s.id === studentId)?.full_name ?? ""}
-                </span>
-              </div>
-            ) : (
-              <select
-                value={studentId}
-                onChange={(e) => handleStudentChange(e.target.value)}
-                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
-              >
-                {students.map(s => <option key={s.id} value={s.id}>{s.full_name}</option>)}
-              </select>
-            )}
-          </div>
-
-          {/* Días */}
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Días de entrenamiento</label>
-            <div className="flex gap-1.5">
-              {DAYS.map(d => (
-                <button
-                  key={d.value}
-                  type="button"
-                  onClick={() => toggleDay(d.value)}
-                  className={cn(
-                    "flex-1 h-10 rounded-xl text-sm font-bold transition-all",
-                    trainingDays.includes(d.value)
-                      ? "bg-brand-500 text-white shadow-sm"
-                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                  )}
-                >
-                  {d.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Fecha inicio + semanas */}
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Inicio"
-              type="date"
-              value={startDate}
-              min={today}
-              onChange={e => setStartDate(e.target.value)}
-            />
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-semibold text-gray-700">Semanas</label>
-              <input
-                type="number"
-                inputMode="numeric"
-                min="1" max="52"
-                value={totalWeeks}
-                onChange={e => setTotalWeeks(parseInt(e.target.value) || 1)}
-                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
-              />
-            </div>
-          </div>
-
-          {/* Descarga toggle */}
-          <label className="flex items-center gap-3 cursor-pointer">
-            <div
-              onClick={() => setHasDeload(!hasDeload)}
-              className={cn("h-6 w-11 rounded-full relative transition-colors flex-shrink-0", hasDeload ? "bg-brand-500" : "bg-gray-200")}
-            >
-              <div className={cn("absolute top-0.5 h-5 w-5 bg-white rounded-full shadow transition-transform", hasDeload ? "translate-x-5" : "translate-x-0.5")} />
-            </div>
-            <span className="text-sm text-gray-700 font-medium">Semanas de descarga</span>
-            {hasDeload && (
-              <div className="flex items-center gap-1 ml-auto">
-                <span className="text-xs text-gray-500">cada</span>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min="2" max="12"
-                  value={deloadWeeks}
-                  onChange={e => setDeloadWeeks(parseInt(e.target.value) || 4)}
-                  className="h-8 w-14 rounded-lg border border-gray-200 bg-white px-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                />
-                <span className="text-xs text-gray-500">sem.</span>
-              </div>
-            )}
-          </label>
-
-          {/* Preview */}
-          {sessionCount > 0 && (
-            <div className="bg-brand-50 rounded-2xl px-4 py-3 border border-brand-100">
-              <p className="text-sm font-bold text-brand-700">
-                Se van a generar <span className="text-brand-600">{sessionCount}</span> rutinas en {totalWeeks} semanas
-              </p>
-            </div>
-          )}
-
-          {!existingWarning && (
+    <Modal
+      title="Asignar rutina"
+      subtitle={templateName}
+      onClose={onClose}
+      zIndex={200}
+      footer={
+        !existingWarning ? (
+          <div style={{ padding: "12px 20px 16px" }}>
             <Button
               size="lg"
               className="w-full"
@@ -292,10 +129,146 @@ export function QuickAssignModal({ templateId, templateName, students, onClose, 
             >
               Asignar rutina
             </Button>
+          </div>
+        ) : undefined
+      }
+    >
+      <div className="px-5 pb-6 pt-4 flex flex-col gap-4">
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 text-sm text-red-600">{error}</div>
+        )}
+
+        {existingWarning && (
+          <div className="rounded-2xl p-4 flex flex-col gap-3"
+            style={{ background: "rgba(245,158,11,0.08)", border: "0.5px solid rgba(245,158,11,0.3)" }}>
+            <div className="flex items-start gap-2">
+              <span className="text-lg leading-none">⚠️</span>
+              <div>
+                <p className="text-sm font-bold text-amber-800">Este alumno ya tiene una rutina activa</p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  <span className="font-semibold">"{existingWarning.name}"</span> se cancelará al reemplazar.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setExistingWarning(null)}
+                className="flex-1 h-10 rounded-xl text-sm font-semibold text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => { setExistingWarning(null); doAssign(true); }}
+                disabled={loading}
+                className="flex-1 h-10 rounded-xl text-sm font-bold text-white transition-colors disabled:opacity-60"
+                style={{ background: "linear-gradient(135deg, #F59E0B, #D97706)" }}
+              >
+                {loading ? "Asignando..." : "Sí, reemplazar"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Alumno */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Alumno</label>
+          {lockStudent ? (
+            <div className="h-11 w-full rounded-xl border border-gray-100 bg-gray-50 px-3.5 flex items-center">
+              <span className="text-sm font-semibold text-gray-700">
+                {students.find(s => s.id === studentId)?.full_name ?? ""}
+              </span>
+            </div>
+          ) : (
+            <select
+              value={studentId}
+              onChange={(e) => handleStudentChange(e.target.value)}
+              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            >
+              {students.map(s => <option key={s.id} value={s.id}>{s.full_name}</option>)}
+            </select>
           )}
         </div>
+
+        {/* Días */}
+        <div className="flex flex-col gap-2">
+          <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Días de entrenamiento</label>
+          <div className="flex gap-1.5">
+            {DAYS.map(d => (
+              <button
+                key={d.value}
+                type="button"
+                onClick={() => toggleDay(d.value)}
+                className={cn(
+                  "flex-1 h-10 rounded-xl text-sm font-bold transition-all",
+                  trainingDays.includes(d.value)
+                    ? "bg-brand-500 text-white shadow-sm"
+                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                )}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
         </div>
+
+        {/* Fecha inicio + semanas */}
+        <div className="grid grid-cols-2 gap-3">
+          <Input
+            label="Inicio"
+            type="date"
+            value={startDate}
+            min={today}
+            onChange={e => setStartDate(e.target.value)}
+          />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-semibold text-gray-700">Semanas</label>
+            <input
+              type="number"
+              inputMode="numeric"
+              min="1" max="52"
+              value={totalWeeks}
+              onChange={e => setTotalWeeks(parseInt(e.target.value) || 1)}
+              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+        </div>
+
+        {/* Descarga toggle */}
+        <label className="flex items-center gap-3 cursor-pointer">
+          <div
+            onClick={() => setHasDeload(!hasDeload)}
+            className={cn("h-6 w-11 rounded-full relative transition-colors flex-shrink-0", hasDeload ? "bg-brand-500" : "bg-gray-200")}
+          >
+            <div className={cn("absolute top-0.5 h-5 w-5 bg-white rounded-full shadow transition-transform", hasDeload ? "translate-x-5" : "translate-x-0.5")} />
+          </div>
+          <span className="text-sm text-gray-700 font-medium">Semanas de descarga</span>
+          {hasDeload && (
+            <div className="flex items-center gap-1 ml-auto">
+              <span className="text-xs text-gray-500">cada</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min="2" max="12"
+                value={deloadWeeks}
+                onChange={e => setDeloadWeeks(parseInt(e.target.value) || 4)}
+                className="h-8 w-14 rounded-lg border border-gray-200 bg-white px-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+              <span className="text-xs text-gray-500">sem.</span>
+            </div>
+          )}
+        </label>
+
+        {/* Preview */}
+        {sessionCount > 0 && (
+          <div className="bg-brand-50 rounded-2xl px-4 py-3 border border-brand-100">
+            <p className="text-sm font-bold text-brand-700">
+              Se van a generar <span className="text-brand-600">{sessionCount}</span> rutinas en {totalWeeks} semanas
+            </p>
+          </div>
+        )}
       </div>
-    </div>
+    </Modal>
   );
 }

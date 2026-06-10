@@ -9,6 +9,7 @@ import { useToast } from "@/components/shared/ToastProvider";
 import { useTimer } from "@/components/shared/TimerContext";
 import { SessionComplete } from "@/components/student/SessionComplete";
 import { finishSessionAction, getPrevMaxAction, notifyPRAction } from "@/app/dashboard/my-sessions/actions";
+import { Modal } from "@/components/ui/Modal";
 import type { Exercise, Session } from "@/lib/types";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -562,21 +563,21 @@ export function ExerciseLogger({ session, exercises, studentId, routineDayName }
     <>
       {/* ── PR Modal ─────────────────────────────────── */}
       {prInfo && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm"
-          onClick={() => setPrInfo(null)}
-        >
-          <div className="bg-[#1A1A2E] border border-yellow-400/30 rounded-3xl p-8 shadow-2xl text-center mx-6 max-w-xs w-full">
-            <div className="text-6xl mb-3 animate-bounce">🏆</div>
+        <Modal zIndex={60} maxWidth={340} panelBackground="#1A1A2E">
+          <div
+            style={{ padding: "32px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, cursor: "pointer" }}
+            onClick={() => setPrInfo(null)}
+          >
+            <div className="text-6xl animate-bounce">🏆</div>
             <p className="text-2xl font-black text-white">¡Nuevo récord!</p>
-            <p className="text-brand-400 font-bold mt-1">{prInfo.exerciseName}</p>
-            <div className="mt-3 bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-4">
+            <p className="text-brand-400 font-bold">{prInfo.exerciseName}</p>
+            <div className="w-full bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-4">
               <p className="text-4xl font-black text-yellow-400">{prInfo.weight} kg</p>
               <p className="text-xs text-yellow-500/60 mt-1 font-semibold">Récord personal</p>
             </div>
-            <p className="text-xs text-white/25 mt-4">Tocá para cerrar</p>
+            <p className="text-xs text-white/25">Tocá para cerrar</p>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* ── Session complete ──────────────────────────── */}

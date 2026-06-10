@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createPortal } from "react-dom";
 import { createClient } from "@/lib/supabase/client";
+import { Modal } from "@/components/ui/Modal";
 import type { ExerciseLibraryItem } from "@/lib/types";
 import { CATEGORIES, getCategoryInfo } from "@/lib/exerciseCategories";
 
@@ -22,19 +22,6 @@ interface Props {
 }
 
 export function ExerciseLibraryPicker({ onSelect, onClose }: Props) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => { setMounted(true); }, []);
-
-  if (!mounted) return null;
-
-  return createPortal(
-    <PickerModal onSelect={onSelect} onClose={onClose} />,
-    document.body
-  );
-}
-
-function PickerModal({ onSelect, onClose }: Props) {
   const [exercises, setExercises] = useState<ExerciseLibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCat, setActiveCat] = useState<string | null>(null);
@@ -46,13 +33,6 @@ function PickerModal({ onSelect, onClose }: Props) {
     supabase.from("exercise_library").select("*").order("name")
       .then(({ data }) => { setExercises(data ?? []); setLoading(false); });
   }, []);
-
-  // Close on Escape
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [onClose]);
 
   const isSearching = search.trim().length > 0;
 
@@ -102,197 +82,167 @@ function PickerModal({ onSelect, onClose }: Props) {
     if (activeCat) { setActiveCat(null); return; }
   }
 
-  const showBack = isSearching || activeCat;
+  const showBack = isSearching || !!activeCat;
+
+  // Breadcrumb subtitle
+  let subtitle: string | undefined;
+  if (!isSearching && activeCat && currentCat) {
+    subtitle = `Biblioteca › ${currentCat.label}${activeSub && currentSubLabel ? ` › ${currentSubLabel}` : ""}`;
+  }
+
+  // Title
+  const title = isSearching
+    ? "Resultados"
+    : activeSub
+    ? (currentSubLabel ?? "Ejercicios")
+    : activeCat
+    ? `${currentCat?.emoji ?? ""} ${currentCat?.label ?? ""}`
+    : "Agregar ejercicio";
 
   return (
-    /* Full-screen overlay — rendered at document.body so nothing clips it */
-    <div
-      style={{
-        position: "fixed", inset: 0, zIndex: 9999,
-        display: "flex", flexDirection: "column",
-        justifyContent: "flex-end",
-        backgroundColor: "rgba(0,0,0,0.45)",
-      }}
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      {/* Modal panel */}
-      <div
-        style={{
-          position: "relative",
-          width: "100%",
-          maxWidth: 540,
-          margin: "0 auto",
-          maxHeight: "85vh",
-          display: "flex",
-          flexDirection: "column",
-          backgroundColor: "#fff",
-          borderRadius: "24px 24px 0 0",
-          boxShadow: "0 -4px 40px rgba(0,0,0,0.18)",
-          overflow: "hidden",
-        }}
-      >
-        {/* ── STICKY HEADER ── */}
-        <div style={{
-          flexShrink: 0,
-          borderBottom: "1px solid #f3f4f6",
-          backgroundColor: "#fff",
-          padding: "16px 16px 12px",
-        }}>
-          {/* Row 1: back + title + close */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-            {showBack && (
-              <button onClick={goBack} style={{
-                padding: 6, border: "none", background: "#f3f4f6",
-                borderRadius: 10, cursor: "pointer", display: "flex",
-                alignItems: "center", flexShrink: 0,
-              }}>
-                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#6b7280" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                </svg>
-              </button>
-            )}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ margin: 0, fontWeight: 700, fontSize: 15, color: "#111827", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {isSearching ? "Resultados"
-                  : activeSub ? currentSubLabel
-                  : activeCat ? `${currentCat?.emoji} ${currentCat?.label}`
-                  : "Agregar ejercicio"}
-              </p>
-              {/* Breadcrumb */}
-              {!isSearching && (activeCat || activeSub) && (
-                <p style={{ margin: 0, fontSize: 11, color: "#9ca3af", marginTop: 1 }}>
-                  Biblioteca
-                  {activeCat && currentCat && ` › ${currentCat.label}`}
-                  {activeSub && currentSubLabel && ` › ${currentSubLabel}`}
-                </p>
-              )}
-            </div>
-            <button onClick={onClose} style={{
-              padding: 6, border: "none", background: "none",
-              cursor: "pointer", color: "#9ca3af", flexShrink: 0,
-            }}>
-              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Row 2: search */}
-          <div style={{ position: "relative" }}>
-            <svg style={{
-              position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)",
-              width: 16, height: 16, color: "#9ca3af", pointerEvents: "none",
-            }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+    <Modal
+      title={title}
+      subtitle={subtitle}
+      onClose={onClose}
+      zIndex={9999}
+      maxWidth={540}
+      headerExtra={
+        showBack ? (
+          <button
+            onClick={goBack}
+            style={{
+              padding: 6,
+              border: "none",
+              background: "rgba(0,0,0,0.06)",
+              borderRadius: 10,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              order: -1,
+              marginRight: 4,
+            }}
+          >
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#6b7280" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
             </svg>
-            <input
-              autoFocus
-              type="search"
-              placeholder="Buscar ejercicio, músculo o equipo..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{
-                width: "100%", boxSizing: "border-box",
-                height: 40, borderRadius: 12,
-                border: "1.5px solid #e5e7eb", background: "#f9fafb",
-                paddingLeft: 34, paddingRight: 12,
-                fontSize: 14, outline: "none",
-              }}
-            />
-          </div>
-        </div>
-
-        {/* ── SCROLLABLE BODY ── */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "12px 12px 0" }}>
-          {loading ? (
-            <p style={{ textAlign: "center", fontSize: 14, color: "#9ca3af", padding: "32px 0" }}>
-              Cargando biblioteca...
-            </p>
-          ) : isSearching ? (
-            displayed.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "32px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-                <p style={{ fontSize: 14, color: "#9ca3af", margin: 0 }}>Sin resultados para &quot;{search}&quot;</p>
-                <a href="/dashboard/library" target="_blank" rel="noopener noreferrer"
-                  style={{ fontSize: 14, fontWeight: 600, color: "#534AB7", textDecoration: "none" }}>
-                  + Crear en biblioteca
-                </a>
-              </div>
-            ) : (
-              <ExerciseList exercises={displayed} onSelect={handleSelect} />
-            )
-          ) : !activeCat ? (
-            /* Level 1: categories */
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, paddingBottom: 12 }}>
-              {CATEGORIES.map(cat => (
-                <button key={cat.value}
-                  onClick={() => { setActiveCat(cat.value); setActiveSub(null); }}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 10,
-                    padding: "12px 14px", borderRadius: 16, textAlign: "left",
-                    backgroundColor: cat.bg, border: `2px solid ${cat.color}33`,
-                    cursor: "pointer", transition: "box-shadow 0.15s",
-                  }}>
-                  <span style={{ fontSize: 24, lineHeight: 1, flexShrink: 0 }}>{cat.emoji}</span>
-                  <div style={{ minWidth: 0 }}>
-                    <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: cat.color, lineHeight: 1.2 }}>{cat.label}</p>
-                    <p style={{ margin: 0, fontSize: 10, marginTop: 2, color: cat.color + "99" }}>
-                      {countByCat[cat.value] ?? 0} ej.
-                    </p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          ) : !activeSub && currentCat ? (
-            /* Level 2: subcategories */
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingBottom: 12 }}>
-              {currentCat.subcategories.map(sub => {
-                const count = countBySub[`${activeCat}/${sub.value}`] ?? 0;
-                return (
-                  <button key={sub.value} onClick={() => setActiveSub(sub.value)}
-                    style={{
-                      display: "flex", alignItems: "center", justifyContent: "space-between",
-                      padding: "12px 16px", borderRadius: 16, textAlign: "left",
-                      backgroundColor: currentCat.bg, border: `2px solid ${currentCat.color}33`,
-                      cursor: "pointer",
-                    }}>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: currentCat.color }}>{sub.label}</span>
-                    <span style={{
-                      fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999,
-                      backgroundColor: currentCat.color + "20", color: currentCat.color,
-                    }}>{count}</span>
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            /* Level 3: exercises */
-            displayed.length === 0 ? (
-              <p style={{ textAlign: "center", fontSize: 14, color: "#9ca3af", padding: "32px 0" }}>
-                Sin ejercicios en esta categoría.
-              </p>
-            ) : (
-              <ExerciseList exercises={displayed} onSelect={handleSelect} />
-            )
-          )}
-        </div>
-
-        {/* ── FOOTER ── */}
-        {!loading && (
-          <div style={{
-            flexShrink: 0, padding: "10px 16px 16px",
-            borderTop: "1px solid #f3f4f6",
-          }}>
-            <a href="/dashboard/library" target="_blank" rel="noopener noreferrer"
-              style={{ fontSize: 13, fontWeight: 600, color: "#9ca3af", textDecoration: "none", display: "flex", alignItems: "center", gap: 6 }}>
+          </button>
+        ) : undefined
+      }
+      footer={
+        !loading ? (
+          <div style={{ padding: "10px 16px 16px" }}>
+            <a
+              href="/dashboard/library"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ fontSize: 13, fontWeight: 600, color: "#9ca3af", textDecoration: "none", display: "flex", alignItems: "center", gap: 6 }}
+            >
               <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
               </svg>
               No encontré el ejercicio — Crear en biblioteca
             </a>
           </div>
+        ) : undefined
+      }
+    >
+      {/* Search bar */}
+      <div style={{ padding: "12px 16px 8px", position: "sticky", top: 0, backgroundColor: "var(--surface-elevated, #fff)", zIndex: 1 }}>
+        <div style={{ position: "relative" }}>
+          <svg
+            style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", width: 16, height: 16, color: "#9ca3af", pointerEvents: "none" }}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+          </svg>
+          <input
+            autoFocus
+            type="search"
+            placeholder="Buscar ejercicio, músculo o equipo..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{
+              width: "100%", boxSizing: "border-box",
+              height: 40, borderRadius: 12,
+              border: "1.5px solid #e5e7eb", background: "#f9fafb",
+              paddingLeft: 34, paddingRight: 12,
+              fontSize: 14, outline: "none",
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Content */}
+      <div style={{ padding: "8px 12px 4px" }}>
+        {loading ? (
+          <p style={{ textAlign: "center", fontSize: 14, color: "#9ca3af", padding: "32px 0" }}>
+            Cargando biblioteca...
+          </p>
+        ) : isSearching ? (
+          displayed.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "32px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+              <p style={{ fontSize: 14, color: "#9ca3af", margin: 0 }}>Sin resultados para &quot;{search}&quot;</p>
+              <a href="/dashboard/library" target="_blank" rel="noopener noreferrer"
+                style={{ fontSize: 14, fontWeight: 600, color: "#534AB7", textDecoration: "none" }}>
+                + Crear en biblioteca
+              </a>
+            </div>
+          ) : (
+            <ExerciseList exercises={displayed} onSelect={handleSelect} />
+          )
+        ) : !activeCat ? (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, paddingBottom: 12 }}>
+            {CATEGORIES.map(cat => (
+              <button key={cat.value}
+                onClick={() => { setActiveCat(cat.value); setActiveSub(null); }}
+                style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "12px 14px", borderRadius: 16, textAlign: "left",
+                  backgroundColor: cat.bg, border: `2px solid ${cat.color}33`,
+                  cursor: "pointer", transition: "box-shadow 0.15s",
+                }}>
+                <span style={{ fontSize: 24, lineHeight: 1, flexShrink: 0 }}>{cat.emoji}</span>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: cat.color, lineHeight: 1.2 }}>{cat.label}</p>
+                  <p style={{ margin: 0, fontSize: 10, marginTop: 2, color: cat.color + "99" }}>
+                    {countByCat[cat.value] ?? 0} ej.
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+        ) : !activeSub && currentCat ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingBottom: 12 }}>
+            {currentCat.subcategories.map(sub => {
+              const count = countBySub[`${activeCat}/${sub.value}`] ?? 0;
+              return (
+                <button key={sub.value} onClick={() => setActiveSub(sub.value)}
+                  style={{
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "12px 16px", borderRadius: 16, textAlign: "left",
+                    backgroundColor: currentCat.bg, border: `2px solid ${currentCat.color}33`,
+                    cursor: "pointer",
+                  }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: currentCat.color }}>{sub.label}</span>
+                  <span style={{
+                    fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999,
+                    backgroundColor: currentCat.color + "20", color: currentCat.color,
+                  }}>{count}</span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          displayed.length === 0 ? (
+            <p style={{ textAlign: "center", fontSize: 14, color: "#9ca3af", padding: "32px 0" }}>
+              Sin ejercicios en esta categoría.
+            </p>
+          ) : (
+            <ExerciseList exercises={displayed} onSelect={handleSelect} />
+          )
         )}
       </div>
-    </div>
+    </Modal>
   );
 }
 

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/shared/ToastProvider";
 import { rescheduleSessionAction } from "@/app/dashboard/my-sessions/actions";
 import { cn } from "@/lib/utils";
+import { Modal } from "@/components/ui/Modal";
 
 interface CalSession {
   id: string;
@@ -346,19 +347,22 @@ export function MonthlyCalendar({ sessions, assignment, totalSessions, completed
 
       {/* Reschedule modal */}
       {selectedSession && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setSelectedSession(null)} />
-          <div className="relative w-full max-w-md rounded-t-3xl p-6 pb-10 shadow-2xl" style={{ background: "var(--surface-elevated, #fff)" }}>
-            <h3 className="text-base font-bold text-gray-900">Reagendar rutina</h3>
-            <p className="text-sm font-medium mt-0.5 mb-4" style={{ color: COLORS.pending }}>
-              {selectedSession.name || `Día ${selectedSession.cycle_day}`}
-              {selectedSession.is_deload && " · Semana de descarga"}
-              {selectedSession.original_date && (
-                <span className="text-gray-400 text-xs ml-1">
-                  · Original: {selectedSession.original_date}
-                </span>
-              )}
-            </p>
+        <Modal
+          title="Reagendar rutina"
+          subtitle={[
+            selectedSession.name || `Día ${selectedSession.cycle_day}`,
+            selectedSession.is_deload ? "Semana de descarga" : null,
+          ].filter(Boolean).join(" · ")}
+          onClose={() => setSelectedSession(null)}
+          zIndex={50}
+          maxWidth={400}
+        >
+          <div className="px-5 py-5 flex flex-col gap-4">
+            {selectedSession.original_date && (
+              <p className="text-xs text-gray-400">
+                Fecha original: {selectedSession.original_date}
+              </p>
+            )}
             <Input
               label="Nueva fecha"
               type="date"
@@ -366,14 +370,14 @@ export function MonthlyCalendar({ sessions, assignment, totalSessions, completed
               onChange={(e) => setNewDate(e.target.value)}
               min={today}
             />
-            <div className="flex gap-2 mt-4">
+            <div className="flex gap-2">
               <Button onClick={handleReschedule} loading={isPending} className="flex-1">
                 Guardar
               </Button>
               <Button variant="ghost" onClick={() => setSelectedSession(null)}>Cancelar</Button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

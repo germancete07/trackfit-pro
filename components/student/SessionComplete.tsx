@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { cn } from "@/lib/utils";
+import { Modal } from "@/components/ui/Modal";
 
 interface Props {
   sessionName: string;
@@ -43,39 +43,32 @@ export function SessionComplete({ sessionName, exerciseCount, totalWeightKg, avg
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-6">
-      {/* Confetti particles */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {particles.map((p, i) => (
-          <div
-            key={i}
-            className="absolute"
-            style={{
-              left: `${p.x}%`,
-              top: `${p.y}%`,
-              width: p.size,
-              height: p.size * (Math.random() > 0.5 ? 2.5 : 1), // mix circles and rectangles
-              borderRadius: Math.random() > 0.5 ? "50%" : "2px",
-              backgroundColor: p.color,
-              opacity: visible ? 0 : 1,
-              transform: visible
-                ? `translateY(-150px) rotate(${p.rotate + 180}deg)`
-                : `translateY(0) rotate(${p.rotate}deg)`,
-              transition: `all 1.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) ${p.delay}s`,
-            }}
-          />
-        ))}
-      </div>
+    <Modal zIndex={50} maxWidth={380}>
+      {/* Confetti overlay inside the modal */}
+      <div style={{ position: "relative", padding: "32px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 20, textAlign: "center" }}>
+        {/* Confetti particles */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-2xl">
+          {particles.map((p, i) => (
+            <div
+              key={i}
+              className="absolute"
+              style={{
+                left: `${p.x}%`,
+                top: `${p.y}%`,
+                width: p.size,
+                height: p.size * (Math.random() > 0.5 ? 2.5 : 1),
+                borderRadius: Math.random() > 0.5 ? "50%" : "2px",
+                backgroundColor: p.color,
+                opacity: visible ? 0 : 1,
+                transform: visible
+                  ? `translateY(-150px) rotate(${p.rotate + 180}deg)`
+                  : `translateY(0) rotate(${p.rotate}deg)`,
+                transition: `all 1.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) ${p.delay}s`,
+              }}
+            />
+          ))}
+        </div>
 
-      {/* Card */}
-      <div
-        className="relative w-full max-w-sm bg-white rounded-3xl p-8 shadow-2xl text-center flex flex-col items-center gap-5"
-        style={{
-          transform: visible ? "scale(1) translateY(0)" : "scale(0.85) translateY(20px)",
-          opacity: visible ? 1 : 0,
-          transition: "all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
-        }}
-      >
         {/* Trophy */}
         <div
           className="h-24 w-24 rounded-full bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center shadow-xl shadow-brand-500/40"
@@ -87,7 +80,13 @@ export function SessionComplete({ sessionName, exerciseCount, totalWeightKg, avg
           <span className="text-4xl">🏆</span>
         </div>
 
-        <div>
+        <div
+          style={{
+            transform: visible ? "scale(1) translateY(0)" : "scale(0.85) translateY(20px)",
+            opacity: visible ? 1 : 0,
+            transition: "all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
+          }}
+        >
           <h2 className="text-2xl font-black text-gray-900">¡Rutina completada!</h2>
           <p className="text-gray-500 text-sm mt-1 truncate max-w-[220px] mx-auto">{sessionName}</p>
         </div>
@@ -124,12 +123,12 @@ export function SessionComplete({ sessionName, exerciseCount, totalWeightKg, avg
           </div>
         </div>
 
-        <p className="text-sm text-gray-400 -mt-1">{message}</p>
+        <p className="text-sm text-gray-400">{message}</p>
 
         <Button size="lg" className="w-full" onClick={onFinish}>
           Volver al inicio
         </Button>
       </div>
-    </div>
+    </Modal>
   );
 }

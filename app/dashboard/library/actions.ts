@@ -5,7 +5,8 @@ import { revalidatePath } from "next/cache";
 interface LibraryExerciseData {
   name: string;
   name_en?: string | null;
-  pattern?: string | null;
+  category?: string | null;
+  subcategory?: string | null;
   muscle_primary?: string | null;
   muscle_secondary?: string | null;
   equipment?: string | null;
@@ -23,7 +24,8 @@ export async function createLibraryExerciseAction(data: LibraryExerciseData) {
     trainer_id: user.id,
     name: data.name.trim(),
     name_en: data.name_en ?? null,
-    pattern: data.pattern ?? null,
+    category: data.category ?? null,
+    subcategory: data.subcategory ?? null,
     muscle_group: data.muscle_primary ?? "otro",
     muscle_primary: data.muscle_primary ?? null,
     muscle_secondary: data.muscle_secondary ?? null,
@@ -47,7 +49,8 @@ export async function updateLibraryExerciseAction(id: string, data: LibraryExerc
   const { error } = await supabase.from("exercise_library").update({
     name: data.name.trim(),
     name_en: data.name_en ?? null,
-    pattern: data.pattern ?? null,
+    category: data.category ?? null,
+    subcategory: data.subcategory ?? null,
     muscle_group: data.muscle_primary ?? "otro",
     muscle_primary: data.muscle_primary ?? null,
     muscle_secondary: data.muscle_secondary ?? null,

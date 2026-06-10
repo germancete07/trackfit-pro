@@ -191,7 +191,9 @@ export interface ExerciseLibraryItem {
   trainer_id: string | null;
   name: string;
   name_en: string | null;
-  pattern: string | null;
+  category: string | null;   // inf|sup|core|pot|mov|calent|func
+  subcategory: string | null;
+  pattern: string | null;    // legacy / backward compat
   muscle_group: string;
   muscle_primary: string | null;
   muscle_secondary: string | null;

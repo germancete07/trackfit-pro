@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { Card } from "@/components/ui/Card";
 import { MonthlyCalendar } from "@/components/student/MonthlyCalendar";
 import { TrainerCalendar, type CalendarSession } from "@/components/trainer/TrainerCalendar";
 

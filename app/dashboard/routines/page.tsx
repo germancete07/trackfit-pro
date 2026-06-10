@@ -24,8 +24,7 @@ export default async function RoutinesPage({
     const { data: exercises } = await supabase
       .from("exercise_library")
       .select("*")
-      .eq("trainer_id", user.id)
-      .order("muscle_group")
+      .or(`trainer_id.eq.${user.id},is_global.eq.true`)
       .order("name");
 
     return (
@@ -42,7 +41,7 @@ export default async function RoutinesPage({
           </Link>
         </div>
         <RoutineTabs active="biblioteca" />
-        <ExerciseLibrary exercises={exercises ?? []} />
+        <ExerciseLibrary exercises={exercises ?? []} trainerId={user.id} />
       </div>
     );
   }

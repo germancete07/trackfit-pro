@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { createClient } from "@/lib/supabase/client";
-import { cn } from "@/lib/utils";
 import type { ExerciseLibraryItem } from "@/lib/types";
 import { CATEGORIES, getCategoryInfo } from "@/lib/exerciseCategories";
 
@@ -22,6 +22,19 @@ interface Props {
 }
 
 export function ExerciseLibraryPicker({ onSelect, onClose }: Props) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
+
+  if (!mounted) return null;
+
+  return createPortal(
+    <PickerModal onSelect={onSelect} onClose={onClose} />,
+    document.body
+  );
+}
+
+function PickerModal({ onSelect, onClose }: Props) {
   const [exercises, setExercises] = useState<ExerciseLibraryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCat, setActiveCat] = useState<string | null>(null);
@@ -33,6 +46,13 @@ export function ExerciseLibraryPicker({ onSelect, onClose }: Props) {
     supabase.from("exercise_library").select("*").order("name")
       .then(({ data }) => { setExercises(data ?? []); setLoading(false); });
   }, []);
+
+  // Close on Escape
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
 
   const isSearching = search.trim().length > 0;
 
@@ -74,81 +94,148 @@ export function ExerciseLibraryPicker({ onSelect, onClose }: Props) {
   }
 
   const currentCat = getCategoryInfo(activeCat ?? "");
+  const currentSubLabel = currentCat?.subcategories.find(s => s.value === activeSub)?.label;
+
+  function goBack() {
+    if (isSearching) { setSearch(""); return; }
+    if (activeSub) { setActiveSub(null); return; }
+    if (activeCat) { setActiveCat(null); return; }
+  }
+
+  const showBack = isSearching || activeCat;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-lg bg-white rounded-t-3xl md:rounded-2xl shadow-2xl mx-0 md:mx-4 flex flex-col"
-        style={{ maxHeight: "90vh" }}>
-
-        {/* Header */}
-        <div className="p-4 border-b border-gray-100 flex-shrink-0 flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {(activeCat || activeSub) && !isSearching && (
-                <button onClick={() => activeSub ? setActiveSub(null) : setActiveCat(null)}
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                  </svg>
-                </button>
-              )}
-              <h3 className="text-base font-bold text-gray-900">
-                {isSearching ? "Resultados de búsqueda"
-                  : activeSub ? currentCat?.subcategories.find(s => s.value === activeSub)?.label
+    /* Full-screen overlay — rendered at document.body so nothing clips it */
+    <div
+      style={{
+        position: "fixed", inset: 0, zIndex: 9999,
+        display: "flex", flexDirection: "column",
+        justifyContent: "flex-end",
+        backgroundColor: "rgba(0,0,0,0.45)",
+      }}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      {/* Modal panel */}
+      <div
+        style={{
+          position: "relative",
+          width: "100%",
+          maxWidth: 540,
+          margin: "0 auto",
+          maxHeight: "85vh",
+          display: "flex",
+          flexDirection: "column",
+          backgroundColor: "#fff",
+          borderRadius: "24px 24px 0 0",
+          boxShadow: "0 -4px 40px rgba(0,0,0,0.18)",
+          overflow: "hidden",
+        }}
+      >
+        {/* ── STICKY HEADER ── */}
+        <div style={{
+          flexShrink: 0,
+          borderBottom: "1px solid #f3f4f6",
+          backgroundColor: "#fff",
+          padding: "16px 16px 12px",
+        }}>
+          {/* Row 1: back + title + close */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            {showBack && (
+              <button onClick={goBack} style={{
+                padding: 6, border: "none", background: "#f3f4f6",
+                borderRadius: 10, cursor: "pointer", display: "flex",
+                alignItems: "center", flexShrink: 0,
+              }}>
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#6b7280" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                </svg>
+              </button>
+            )}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ margin: 0, fontWeight: 700, fontSize: 15, color: "#111827", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {isSearching ? "Resultados"
+                  : activeSub ? currentSubLabel
                   : activeCat ? `${currentCat?.emoji} ${currentCat?.label}`
-                  : "Elegí una categoría"}
-              </h3>
+                  : "Agregar ejercicio"}
+              </p>
+              {/* Breadcrumb */}
+              {!isSearching && (activeCat || activeSub) && (
+                <p style={{ margin: 0, fontSize: 11, color: "#9ca3af", marginTop: 1 }}>
+                  Biblioteca
+                  {activeCat && currentCat && ` › ${currentCat.label}`}
+                  {activeSub && currentSubLabel && ` › ${currentSubLabel}`}
+                </p>
+              )}
             </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <button onClick={onClose} style={{
+              padding: 6, border: "none", background: "none",
+              cursor: "pointer", color: "#9ca3af", flexShrink: 0,
+            }}>
+              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
-          <div className="relative">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none"
-              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+
+          {/* Row 2: search */}
+          <div style={{ position: "relative" }}>
+            <svg style={{
+              position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)",
+              width: 16, height: 16, color: "#9ca3af", pointerEvents: "none",
+            }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
             </svg>
-            <input autoFocus type="search" placeholder="Buscar por nombre, músculo o equipo..."
-              value={search} onChange={e => setSearch(e.target.value)}
-              className="w-full h-10 rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
+            <input
+              autoFocus
+              type="search"
+              placeholder="Buscar ejercicio, músculo o equipo..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{
+                width: "100%", boxSizing: "border-box",
+                height: 40, borderRadius: 12,
+                border: "1.5px solid #e5e7eb", background: "#f9fafb",
+                paddingLeft: 34, paddingRight: 12,
+                fontSize: 14, outline: "none",
+              }}
+            />
           </div>
         </div>
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto p-3">
+        {/* ── SCROLLABLE BODY ── */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "12px 12px 0" }}>
           {loading ? (
-            <p className="text-center text-sm text-gray-400 py-8">Cargando biblioteca...</p>
+            <p style={{ textAlign: "center", fontSize: 14, color: "#9ca3af", padding: "32px 0" }}>
+              Cargando biblioteca...
+            </p>
           ) : isSearching ? (
-            /* Search results */
             displayed.length === 0 ? (
-              <div className="text-center py-8 flex flex-col items-center gap-3">
-                <p className="text-sm text-gray-400">Sin resultados para &quot;{search}&quot;</p>
+              <div style={{ textAlign: "center", padding: "32px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+                <p style={{ fontSize: 14, color: "#9ca3af", margin: 0 }}>Sin resultados para &quot;{search}&quot;</p>
                 <a href="/dashboard/library" target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 hover:text-brand-800 transition-colors">
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                  </svg>
-                  Crear nuevo ejercicio en biblioteca
+                  style={{ fontSize: 14, fontWeight: 600, color: "#534AB7", textDecoration: "none" }}>
+                  + Crear en biblioteca
                 </a>
               </div>
             ) : (
               <ExerciseList exercises={displayed} onSelect={handleSelect} />
             )
           ) : !activeCat ? (
-            /* Level 1: Category grid */
-            <div className="grid grid-cols-2 gap-2 p-1">
+            /* Level 1: categories */
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, paddingBottom: 12 }}>
               {CATEGORIES.map(cat => (
                 <button key={cat.value}
                   onClick={() => { setActiveCat(cat.value); setActiveSub(null); }}
-                  className="flex items-center gap-3 p-3.5 rounded-2xl border-2 text-left transition-all hover:shadow-sm active:scale-95"
-                  style={{ backgroundColor: cat.bg, borderColor: cat.color + "40" }}>
-                  <span className="text-2xl leading-none flex-shrink-0">{cat.emoji}</span>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold leading-tight truncate" style={{ color: cat.color }}>{cat.label}</p>
-                    <p className="text-[10px] mt-0.5" style={{ color: cat.color + "99" }}>
+                  style={{
+                    display: "flex", alignItems: "center", gap: 10,
+                    padding: "12px 14px", borderRadius: 16, textAlign: "left",
+                    backgroundColor: cat.bg, border: `2px solid ${cat.color}33`,
+                    cursor: "pointer", transition: "box-shadow 0.15s",
+                  }}>
+                  <span style={{ fontSize: 24, lineHeight: 1, flexShrink: 0 }}>{cat.emoji}</span>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: cat.color, lineHeight: 1.2 }}>{cat.label}</p>
+                    <p style={{ margin: 0, fontSize: 10, marginTop: 2, color: cat.color + "99" }}>
                       {countByCat[cat.value] ?? 0} ej.
                     </p>
                   </div>
@@ -156,39 +243,48 @@ export function ExerciseLibraryPicker({ onSelect, onClose }: Props) {
               ))}
             </div>
           ) : !activeSub && currentCat ? (
-            /* Level 2: Subcategory list */
-            <div className="flex flex-col gap-1.5 p-1">
+            /* Level 2: subcategories */
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingBottom: 12 }}>
               {currentCat.subcategories.map(sub => {
                 const count = countBySub[`${activeCat}/${sub.value}`] ?? 0;
                 return (
                   <button key={sub.value} onClick={() => setActiveSub(sub.value)}
-                    className="flex items-center justify-between px-4 py-3 rounded-2xl border-2 text-left transition-all hover:shadow-sm"
-                    style={{ backgroundColor: currentCat.bg, borderColor: currentCat.color + "40" }}>
-                    <span className="text-sm font-bold" style={{ color: currentCat.color }}>{sub.label}</span>
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                      style={{ backgroundColor: currentCat.color + "18", color: currentCat.color }}>
-                      {count}
-                    </span>
+                    style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      padding: "12px 16px", borderRadius: 16, textAlign: "left",
+                      backgroundColor: currentCat.bg, border: `2px solid ${currentCat.color}33`,
+                      cursor: "pointer",
+                    }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: currentCat.color }}>{sub.label}</span>
+                    <span style={{
+                      fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999,
+                      backgroundColor: currentCat.color + "20", color: currentCat.color,
+                    }}>{count}</span>
                   </button>
                 );
               })}
             </div>
           ) : (
-            /* Level 3: Exercise list */
+            /* Level 3: exercises */
             displayed.length === 0 ? (
-              <p className="text-center text-sm text-gray-400 py-8">Sin ejercicios en esta categoría.</p>
+              <p style={{ textAlign: "center", fontSize: 14, color: "#9ca3af", padding: "32px 0" }}>
+                Sin ejercicios en esta categoría.
+              </p>
             ) : (
               <ExerciseList exercises={displayed} onSelect={handleSelect} />
             )
           )}
         </div>
 
-        {/* Footer */}
+        {/* ── FOOTER ── */}
         {!loading && (
-          <div className="px-5 py-3 border-t border-gray-100 flex-shrink-0">
+          <div style={{
+            flexShrink: 0, padding: "10px 16px 16px",
+            borderTop: "1px solid #f3f4f6",
+          }}>
             <a href="/dashboard/library" target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-2 text-sm font-semibold text-gray-400 hover:text-brand-600 transition-colors">
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              style={{ fontSize: 13, fontWeight: 600, color: "#9ca3af", textDecoration: "none", display: "flex", alignItems: "center", gap: 6 }}>
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
               </svg>
               No encontré el ejercicio — Crear en biblioteca
@@ -205,30 +301,32 @@ function ExerciseList({ exercises, onSelect }: {
   onSelect: (ex: ExerciseLibraryItem) => void;
 }) {
   return (
-    <div className="flex flex-col gap-0.5">
+    <div style={{ display: "flex", flexDirection: "column", gap: 2, paddingBottom: 12 }}>
       {exercises.map(ex => {
         const cat = getCategoryInfo(ex.category ?? "");
         const muscle = ex.muscle_primary ?? ex.muscle_group ?? "";
         return (
           <button key={ex.id} onClick={() => onSelect(ex)}
-            className="w-full text-left px-3.5 py-3 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors flex items-center gap-3 group">
+            style={{
+              width: "100%", textAlign: "left", padding: "10px 12px",
+              borderRadius: 12, border: "none", background: "none",
+              cursor: "pointer", display: "flex", alignItems: "center", gap: 10,
+            }}
+            onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#f9fafb")}
+            onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
+          >
             {cat && (
-              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
+              <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: cat.color, flexShrink: 0 }} />
             )}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-900 group-hover:text-brand-700 truncate">{ex.name}</p>
-              <div className="flex items-center gap-2 mt-0.5">
-                {muscle && <span className="text-xs text-gray-400">{muscle}</span>}
-                {ex.equipment && (
-                  <>
-                    <span className="text-gray-200">·</span>
-                    <span className="text-xs text-gray-400">{ex.equipment}</span>
-                  </>
-                )}
-              </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {ex.name}
+              </p>
+              <p style={{ margin: 0, fontSize: 11, color: "#9ca3af", marginTop: 1 }}>
+                {[muscle, ex.equipment].filter(Boolean).join(" · ")}
+              </p>
             </div>
-            <svg className="h-4 w-4 text-brand-400 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#a78bfa" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
           </button>

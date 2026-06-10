@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -142,6 +142,12 @@ export function ExerciseLogger({ session, exercises, studentId, routineDayName }
     }
     return init;
   });
+
+  // Fill the full content area on desktop — removes max-w-4xl from the layout wrapper
+  useEffect(() => {
+    document.body.classList.add("training-active");
+    return () => document.body.classList.remove("training-active");
+  }, []);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 

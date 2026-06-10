@@ -91,12 +91,11 @@ export default async function MyRoutinesPage() {
                     <span className="text-lg">{todaySession.is_deload ? "🔽" : "💪"}</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-black text-gray-900 truncate">{todaySession.name}</p>
-                    <p className="text-xs text-gray-500">
-                      {todaySession.is_deload ? "Semana de descarga · " : ""}
-                      {(todaySession as { routine_day_name?: string }).routine_day_name
-                        ? (todaySession as { routine_day_name: string }).routine_day_name
-                        : `Día ${todaySession.cycle_day} del ciclo`}
+                    <p className="font-black text-gray-900 truncate">
+                      {(todaySession as { routine_day_name?: string }).routine_day_name ?? `Día ${todaySession.cycle_day}`}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {routineName}{todaySession.is_deload ? " · Semana de descarga" : ""}
                     </p>
                   </div>
                   <Button size="sm" className="flex-shrink-0">Entrenar</Button>
@@ -110,27 +109,27 @@ export default async function MyRoutinesPage() {
             <section>
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Próximas</p>
               <div className="flex flex-col gap-1.5">
-                {upcoming.map(s => (
-                  <Link key={s.id} href={`/dashboard/my-sessions/${s.id}`}>
-                    <Card padding="sm" className={`flex items-center gap-3 hover:border-brand-200 transition-colors ${s.is_deload ? "border-amber-100" : ""}`}>
-                      <div className={`h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-black ${s.is_deload ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500"}`}>
-                        {s.cycle_day}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 truncate">{s.name}</p>
-                        <p className="text-xs text-gray-400">
-                          {(s as { routine_day_name?: string }).routine_day_name
-                            ? `${(s as { routine_day_name: string }).routine_day_name} · `
-                            : ""}
-                          {s.scheduled_date ? formatDate(s.scheduled_date) : "Sin fecha"}
-                        </p>
-                      </div>
-                      {s.is_deload && (
-                        <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full flex-shrink-0">Descarga</span>
-                      )}
-                    </Card>
-                  </Link>
-                ))}
+                {upcoming.map(s => {
+                  const dayName = (s as { routine_day_name?: string }).routine_day_name ?? `Día ${s.cycle_day}`;
+                  return (
+                    <Link key={s.id} href={`/dashboard/my-sessions/${s.id}`}>
+                      <Card padding="sm" className={`flex items-center gap-3 hover:border-brand-200 transition-colors ${s.is_deload ? "border-amber-100" : ""}`}>
+                        <div className={`h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-black ${s.is_deload ? "bg-amber-100 text-amber-700" : "bg-brand-50 text-brand-600"}`}>
+                          {s.cycle_day}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 truncate">{dayName}</p>
+                          <p className="text-xs text-gray-400 truncate">
+                            {routineName}{s.is_deload ? " · Descarga" : ""}{s.scheduled_date ? ` · ${formatDate(s.scheduled_date)}` : ""}
+                          </p>
+                        </div>
+                        {s.is_deload && (
+                          <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full flex-shrink-0">Descarga</span>
+                        )}
+                      </Card>
+                    </Link>
+                  );
+                })}
               </div>
             </section>
           )}

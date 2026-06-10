@@ -241,3 +241,10 @@
     border-radius: 12px;
   }
 }
+
+/* Training session — remove max-w-4xl cap so the dark bg fills the full content area on desktop */
+@media (min-width: 768px) {
+  body.training-active main > div {
+    max-width: none !important;
+  }
+}

@@ -16,6 +16,8 @@ interface Props {
   onClose: () => void;
   /** Pre-select this student in the dropdown (e.g. when opening from a student's profile) */
   initialStudentId?: string;
+  /** When true, hides the student selector and shows a fixed name chip */
+  lockStudent?: boolean;
 }
 
 const DAYS = [
@@ -32,7 +34,7 @@ function toLocalDateStr(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
 
-export function QuickAssignModal({ templateId, templateName, students, onClose, initialStudentId }: Props) {
+export function QuickAssignModal({ templateId, templateName, students, onClose, initialStudentId, lockStudent }: Props) {
   const { showToast } = useToast();
   const today = toLocalDateStr(new Date());
 
@@ -119,27 +121,30 @@ export function QuickAssignModal({ templateId, templateName, students, onClose, 
 
       {/* Sheet */}
       <div
-        className="relative w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[92vh] overflow-y-auto"
-        style={{ background: "var(--surface-elevated)", border: "0.5px solid var(--surface-elevated-border)" }}
+        className="relative w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col"
+        style={{ background: "var(--surface-elevated)", border: "0.5px solid var(--surface-elevated-border)", maxHeight: "90vh" }}
       >
-        {/* Handle */}
-        <div className="flex justify-center pt-3 pb-1 sm:hidden">
+        {/* Handle (mobile) */}
+        <div className="flex justify-center pt-3 pb-1 sm:hidden flex-shrink-0">
           <div className="h-1 w-10 bg-gray-200 rounded-full" />
         </div>
 
-        <div className="px-5 pb-8 pt-4 flex flex-col gap-4">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-black text-gray-900">Asignar rutina</h2>
-              <p className="text-xs text-brand-500 font-medium truncate max-w-[220px]">{templateName}</p>
-            </div>
-            <button onClick={onClose} className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200">
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+        {/* Sticky header */}
+        <div className="flex items-center justify-between px-5 pt-3 pb-4 flex-shrink-0 border-b border-gray-100">
+          <div>
+            <h2 className="text-base font-black text-gray-900">Asignar rutina</h2>
+            <p className="text-xs text-brand-500 font-medium truncate max-w-[220px]">{templateName}</p>
           </div>
+          <button onClick={onClose} className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Scrollable body */}
+        <div className="overflow-y-auto flex-1">
+        <div className="px-5 pb-8 pt-4 flex flex-col gap-4">
 
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 text-sm text-red-600">{error}</div>
@@ -182,13 +187,21 @@ export function QuickAssignModal({ templateId, templateName, students, onClose, 
           {/* Alumno */}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Alumno</label>
-            <select
-              value={studentId}
-              onChange={(e) => handleStudentChange(e.target.value)}
-              className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
-            >
-              {students.map(s => <option key={s.id} value={s.id}>{s.full_name}</option>)}
-            </select>
+            {lockStudent ? (
+              <div className="h-11 w-full rounded-xl border border-gray-100 bg-gray-50 px-3.5 flex items-center">
+                <span className="text-sm font-semibold text-gray-700">
+                  {students.find(s => s.id === studentId)?.full_name ?? ""}
+                </span>
+              </div>
+            ) : (
+              <select
+                value={studentId}
+                onChange={(e) => handleStudentChange(e.target.value)}
+                className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              >
+                {students.map(s => <option key={s.id} value={s.id}>{s.full_name}</option>)}
+              </select>
+            )}
           </div>
 
           {/* Días */}
@@ -280,6 +293,7 @@ export function QuickAssignModal({ templateId, templateName, students, onClose, 
               Asignar rutina
             </Button>
           )}
+        </div>
         </div>
       </div>
     </div>

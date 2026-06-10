@@ -25,7 +25,9 @@ export async function createAssignmentAction(data: {
   if (data.trainingDays.length === 0)
     return { error: "Seleccioná al menos un día de entrenamiento" };
 
-  // Verify template ownership AND student ownership + fetch routine days in parallel
+  // Verify template ownership AND student ownership in parallel.
+  // NOTE: routine_days is fetched WITHOUT nested template_exercises to avoid
+  // PostgREST schema-cache issues with the routine_day_id FK (migration_v17).
   const [{ data: template }, { data: student }, { data: routineDays }] = await Promise.all([
     supabase
       .from("session_templates")
@@ -41,12 +43,32 @@ export async function createAssignmentAction(data: {
       .maybeSingle(),
     supabase
       .from("routine_days")
-      .select("id, day_number, name, template_exercises(*)")
+      .select("id, day_number, name")
       .eq("template_id", data.templateId)
       .order("day_number"),
   ]);
   if (!template) return { error: "Rutina no encontrada" };
   if (!student) return { error: "Alumno no encontrado" };
+
+  // Fetch exercises for each routine day (separate query, avoids schema-cache FK issues)
+  type RawExercise = {
+    routine_day_id: string | null;
+    name: string; sets: number; reps: string; rest_seconds: number | null;
+    youtube_url: string | null; technical_note: string | null;
+    sort_order: number; superset_group: string | null;
+    library_exercise_id: string | null;
+  };
+
+  const resolvedDays = routineDays ?? [];
+  const dayIds = resolvedDays.map((d: { id: string }) => d.id);
+
+  const { data: rawExercises } = dayIds.length > 0
+    ? await supabase
+        .from("template_exercises")
+        .select("routine_day_id, name, sets, reps, rest_seconds, youtube_url, technical_note, sort_order, superset_group, library_exercise_id")
+        .in("routine_day_id", dayIds)
+        .order("sort_order")
+    : { data: [] as RawExercise[] };
 
   // Check for existing active assignment (unless force=true)
   if (!data.force) {
@@ -65,13 +87,26 @@ export async function createAssignmentAction(data: {
     }
   }
 
-  // Cancel existing active assignment
-  await supabase
+  // Cancel existing active assignment + its pending sessions
+  const { data: oldAssignment } = await supabase
     .from("routine_assignments")
-    .update({ status: "cancelled" })
+    .select("id")
     .eq("trainer_id", user.id)
     .eq("student_id", data.studentId)
-    .eq("status", "active");
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (oldAssignment) {
+    await supabase
+      .from("sessions")
+      .update({ status: "cancelled" })
+      .eq("assignment_id", oldAssignment.id)
+      .eq("status", "pending");
+    await supabase
+      .from("routine_assignments")
+      .update({ status: "cancelled" })
+      .eq("id", oldAssignment.id);
+  }
 
   const { data: assignment, error: aErr } = await supabase
     .from("routine_assignments")
@@ -94,40 +129,40 @@ export async function createAssignmentAction(data: {
     return { error: "Error al crear la asignación" };
   }
 
-  // Generate sessions using shared helper
-  const numDays = (routineDays ?? []).length || 1;
+  // Build day-exercise map and generate session slots with cyclic day distribution
+  const numDays = resolvedDays.length || 1;
+
+  const daysInfo: RoutineDayInfo[] = resolvedDays.map((d: { id: string; day_number: number; name: string }) => ({
+    id: d.id, day_number: d.day_number, name: d.name,
+  }));
+
+  const dayExercises = resolvedDays.map((d: { id: string; day_number: number }) => ({
+    day_id: d.id,
+    day_number: d.day_number,
+    exercises: (rawExercises ?? [])
+      .filter((ex: RawExercise) => ex.routine_day_id === d.id),
+  }));
+
   const slots = buildSessionSlots(
     data.startDate, data.trainingDays, data.totalWeeks, data.deloadEveryWeeks, numDays
   );
   if (slots.length === 0) return { error: "No se generaron sesiones con esos parámetros" };
 
-  const daysInfo: RoutineDayInfo[] = (routineDays ?? []).map((d: { id: string; day_number: number; name: string }) => ({
-    id: d.id, day_number: d.day_number, name: d.name,
-  }));
-
   const sessionRows = buildSessionRows(
     user.id, data.studentId, template.name, assignment.id, slots, daysInfo
   );
+
+  // Insert sessions and fetch back with routine_day_number to avoid relying on insert order
   const { data: insertedSessions, error: sErr } = await supabase
-    .from("sessions").insert(sessionRows).select("id");
+    .from("sessions")
+    .insert(sessionRows)
+    .select("id, routine_day_number");
   if (sErr || !insertedSessions) return { error: "Error al generar las sesiones" };
 
-  const sessionsWithDay = (insertedSessions as { id: string }[]).map((s, i) => ({
+  // Map exercises using actual routine_day_number from DB (not assumed insert order)
+  const sessionsWithDay = (insertedSessions as { id: string; routine_day_number: number | null }[]).map(s => ({
     id: s.id,
-    routineDayNumber: slots[i]!.routineDayNumber,
-  }));
-
-  interface RawExercise {
-    name: string; sets: number; reps: string; rest_seconds: number | null;
-    youtube_url: string | null; technical_note: string | null;
-    sort_order: number; superset_group: string | null;
-  }
-
-  const dayExercises = (routineDays ?? []).map((d: { day_number: number; template_exercises: unknown[] }) => ({
-    day_number: d.day_number,
-    exercises: ([...(d.template_exercises ?? [])] as RawExercise[]).sort(
-      (a, b) => a.sort_order - b.sort_order
-    ),
+    routineDayNumber: s.routine_day_number ?? 1,
   }));
 
   const exRows = buildExerciseRows(sessionsWithDay, dayExercises);
@@ -153,6 +188,13 @@ export async function cancelAssignmentAction(assignmentId: string, studentId: st
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "No autenticado" };
 
+  // Cancel pending sessions first so they disappear from the calendar
+  await supabase
+    .from("sessions")
+    .update({ status: "cancelled" })
+    .eq("assignment_id", assignmentId)
+    .eq("status", "pending");
+
   await supabase
     .from("routine_assignments")
     .update({ status: "cancelled" })
@@ -160,5 +202,105 @@ export async function cancelAssignmentAction(assignmentId: string, studentId: st
     .eq("trainer_id", user.id);
 
   revalidatePath(`/dashboard/students/${studentId}`);
+  revalidatePath("/dashboard/calendar");
   return { success: true };
+}
+
+// ── Regenerate sessions for an existing assignment ────────────────────────────
+
+export async function regenerateSessionsAction(
+  assignmentId: string,
+  studentId: string
+): Promise<{ success: true; generated: number } | { error: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  // Fetch assignment
+  const { data: assignment } = await supabase
+    .from("routine_assignments")
+    .select("id, start_date, training_days, total_weeks, deload_every_weeks, template_id, session_templates(name)")
+    .eq("id", assignmentId)
+    .eq("trainer_id", user.id)
+    .single();
+  if (!assignment) return { error: "Asignación no encontrada" };
+
+  const templateName =
+    (assignment.session_templates as { name?: string } | null)?.name ?? "Rutina";
+
+  // Fetch routine_days (separate query, avoids PostgREST schema-cache issues)
+  const { data: routineDays } = await supabase
+    .from("routine_days")
+    .select("id, day_number, name")
+    .eq("template_id", assignment.template_id)
+    .order("day_number");
+
+  const resolvedDays = routineDays ?? [];
+  const dayIds = resolvedDays.map((d: { id: string }) => d.id);
+
+  type RawEx = {
+    routine_day_id: string | null; name: string; sets: number; reps: string;
+    rest_seconds: number | null; youtube_url: string | null;
+    technical_note: string | null; sort_order: number; superset_group: string | null;
+    library_exercise_id: string | null;
+  };
+  const { data: rawExercises } = dayIds.length > 0
+    ? await supabase
+        .from("template_exercises")
+        .select("routine_day_id, name, sets, reps, rest_seconds, youtube_url, technical_note, sort_order, superset_group, library_exercise_id")
+        .in("routine_day_id", dayIds)
+        .order("sort_order")
+    : { data: [] as RawEx[] };
+
+  // Cancel all pending sessions for this assignment
+  await supabase
+    .from("sessions")
+    .update({ status: "cancelled" })
+    .eq("assignment_id", assignmentId)
+    .eq("status", "pending");
+
+  // Treat deload_every_weeks=1 (or 0) as no deload (defensive fix)
+  const rawDeload = assignment.deload_every_weeks as number | null;
+  const safeDeload = rawDeload && rawDeload >= 2 ? rawDeload : null;
+
+  const numDays = resolvedDays.length || 1;
+  const daysInfo: RoutineDayInfo[] = resolvedDays.map(
+    (d: { id: string; day_number: number; name: string }) => ({ id: d.id, day_number: d.day_number, name: d.name })
+  );
+  const dayExercises = resolvedDays.map((d: { id: string; day_number: number }) => ({
+    day_id: d.id,
+    day_number: d.day_number,
+    exercises: (rawExercises ?? []).filter((ex: RawEx) => ex.routine_day_id === d.id),
+  }));
+
+  const slots = buildSessionSlots(
+    assignment.start_date,
+    assignment.training_days,
+    assignment.total_weeks,
+    safeDeload,
+    numDays
+  );
+  if (slots.length === 0) return { error: "No se generaron sesiones" };
+
+  const sessionRows = buildSessionRows(user.id, studentId, templateName, assignmentId, slots, daysInfo);
+
+  const { data: inserted, error: sErr } = await supabase
+    .from("sessions")
+    .insert(sessionRows)
+    .select("id, routine_day_number");
+  if (sErr || !inserted) return { error: `Error al generar sesiones: ${sErr?.message ?? "desconocido"}` };
+
+  const sessionsWithDay = (inserted as { id: string; routine_day_number: number | null }[]).map(s => ({
+    id: s.id,
+    routineDayNumber: s.routine_day_number ?? 1,
+  }));
+
+  const exRows = buildExerciseRows(sessionsWithDay, dayExercises);
+  if (exRows.length > 0) {
+    await supabase.from("exercises").insert(exRows);
+  }
+
+  revalidatePath(`/dashboard/students/${studentId}`);
+  revalidatePath("/dashboard/calendar");
+  return { success: true, generated: slots.length };
 }

@@ -72,7 +72,7 @@ export function NotificationsView({ notifications: initialNotifications, userRol
   }
 
   return (
-    <div className="px-4 py-5 flex flex-col gap-4">
+    <div className="px-4 py-5 flex flex-col gap-4 antialiased">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-black text-gray-900">Notificaciones</h1>
         {unreadCount > 0 && (

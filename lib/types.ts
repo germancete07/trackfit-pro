@@ -56,6 +56,7 @@ export interface SessionTemplate {
   name: string;
   description: string | null;
   category_id: string | null;
+  training_type: string | null;
   created_at: string;
   template_exercises?: TemplateExercise[];
   routine_days?: RoutineDay[];
@@ -74,6 +75,7 @@ export interface TemplateExercise {
   sort_order: number;
   superset_group: string | null;
   routine_day_id?: string | null;
+  library_exercise_id?: string | null;
 }
 
 export interface Message {
@@ -101,7 +103,7 @@ export interface Session {
   name: string;
   scheduled_date: string | null;
   notes: string | null;
-  status: "pending" | "active" | "completed";
+  status: "pending" | "active" | "completed" | "cancelled";
   assignment_id: string | null;
   cycle_day: number | null;
   is_deload: boolean;
@@ -141,6 +143,7 @@ export interface Exercise {
   muscle_group: string | null;
   sort_order: number;
   superset_group: string | null;
+  library_exercise_id: string | null;
   created_at: string;
   // joined
   logs?: ExerciseLog[];
@@ -185,9 +188,16 @@ export interface Notification {
 
 export interface ExerciseLibraryItem {
   id: string;
-  trainer_id: string;
+  trainer_id: string | null;
   name: string;
+  name_en: string | null;
+  pattern: string | null;
   muscle_group: string;
+  muscle_primary: string | null;
+  muscle_secondary: string | null;
+  equipment: string | null;
+  level: number | null;
+  is_global: boolean;
   description: string | null;
   youtube_url: string | null;
   image_url: string | null;

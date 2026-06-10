@@ -87,12 +87,41 @@ export default async function StudentDetailPage({
   if (activeTab === "info" || activeTab === "rutina") {
     const { data: assignment } = await supabase
       .from("routine_assignments")
-      .select("id, start_date, training_days, total_weeks, deload_every_weeks, template_id, session_templates(name)")
+      .select("id, start_date, training_days, total_weeks, deload_every_weeks, template_id, session_templates(id, name, training_type)")
       .eq("trainer_id", user.id)
       .eq("student_id", params.id)
       .eq("status", "active")
       .maybeSingle();
     activeAssignment = assignment;
+
+    // Fetch routine_days separately (avoids PostgREST schema-cache issues)
+    if (assignment?.template_id) {
+      const { data: rdRows } = await supabase
+        .from("routine_days")
+        .select("id, day_number, name, sort_order")
+        .eq("template_id", assignment.template_id)
+        .order("day_number");
+
+      if (rdRows && rdRows.length > 0) {
+        const dayIds = rdRows.map((d: { id: string }) => d.id);
+        const { data: exRows } = await supabase
+          .from("template_exercises")
+          .select("id, name, sort_order, superset_group, routine_day_id")
+          .in("routine_day_id", dayIds);
+
+        const exByDay: Record<string, typeof exRows> = {};
+        for (const ex of exRows ?? []) {
+          const key = ex.routine_day_id as string;
+          if (!exByDay[key]) exByDay[key] = [];
+          exByDay[key]!.push(ex);
+        }
+
+        (activeAssignment as any).routineDays = rdRows.map((d: { id: string; day_number: number; name: string; sort_order: number }) => ({
+          ...d,
+          template_exercises: (exByDay[d.id] ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order),
+        }));
+      }
+    }
 
     if (assignment) {
       const { data: assignSessions } = await supabase
@@ -485,6 +514,7 @@ export default async function StudentDetailPage({
               progress={assignmentProgress}
               studentId={params.id}
               templateId={activeAssignment?.template_id}
+              routineDays={(activeAssignment as any)?.routineDays}
             />
 
             {/* Historial */}
@@ -496,7 +526,11 @@ export default async function StudentDetailPage({
                     <Card key={ra.id} padding="sm" className="flex items-center gap-3">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-gray-900 truncate">
-                          {(ra.session_templates as { name?: string } | null)?.name ?? "Rutina eliminada"}
+                          {(() => {
+                            const st = ra.session_templates;
+                            const tpl = Array.isArray(st) ? st[0] : st;
+                            return (tpl as { name?: string } | null)?.name ?? "Rutina eliminada";
+                          })()}
                         </p>
                         <p className="text-xs text-gray-400">
                           {fmtDate(ra.start_date)} · {ra.total_weeks} sem

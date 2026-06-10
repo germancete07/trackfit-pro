@@ -47,10 +47,10 @@ export default async function RoutinesPage({
     );
   }
 
-  const [{ data: routines }, { data: categories }, { data: students }] = await Promise.all([
+  const [{ data: routines }, { data: categories }, { data: students }, { data: activeAssigns }] = await Promise.all([
     supabase
       .from("session_templates")
-      .select("*, template_exercises(*)")
+      .select("*, routine_days(id, day_number, name, sort_order, template_exercises(id, name, sort_order, sets, reps, superset_group, routine_day_id))")
       .eq("trainer_id", user.id)
       .order("created_at", { ascending: false }),
     supabase
@@ -64,7 +64,18 @@ export default async function RoutinesPage({
       .eq("trainer_id", user.id)
       .eq("archived", false)
       .order("full_name"),
+    supabase
+      .from("routine_assignments")
+      .select("template_id")
+      .eq("trainer_id", user.id)
+      .eq("status", "active"),
   ]);
+
+  // Build active-count map: template_id → number of active assignments
+  const activeCounts: Record<string, number> = {};
+  for (const a of activeAssigns ?? []) {
+    activeCounts[a.template_id] = (activeCounts[a.template_id] ?? 0) + 1;
+  }
 
   return (
     <div className="px-4 py-5 flex flex-col gap-4">
@@ -88,6 +99,7 @@ export default async function RoutinesPage({
         students={students ?? []}
         newRoutineHref="/dashboard/templates/new"
         preselectedStudentId={searchParams.assignTo}
+        activeCounts={activeCounts}
       />
     </div>
   );

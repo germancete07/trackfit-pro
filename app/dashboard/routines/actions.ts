@@ -81,7 +81,9 @@ export async function quickAssignAction(data: {
     return { error: "La duración debe estar entre 1 y 52 semanas" };
   }
 
-  // Verify template ownership AND student ownership in parallel
+  // Verify template ownership AND student ownership in parallel.
+  // NOTE: routine_days is fetched WITHOUT nested template_exercises to avoid
+  // PostgREST schema-cache issues with the routine_day_id FK (migration_v17).
   const [{ data: template }, { data: student }, { data: routineDays }] = await Promise.all([
     supabase
       .from("session_templates")
@@ -97,12 +99,32 @@ export async function quickAssignAction(data: {
       .maybeSingle(),
     supabase
       .from("routine_days")
-      .select("id, day_number, name, template_exercises(*)")
+      .select("id, day_number, name")
       .eq("template_id", data.templateId)
       .order("day_number"),
   ]);
   if (!template) return { error: "Rutina no encontrada" };
   if (!student) return { error: "Alumno no encontrado" };
+
+  // Fetch exercises for each routine day (separate query, avoids schema-cache FK issues)
+  type RawExercise = {
+    routine_day_id: string | null;
+    name: string; sets: number; reps: string; rest_seconds: number | null;
+    youtube_url: string | null; technical_note: string | null;
+    sort_order: number; superset_group: string | null;
+    library_exercise_id: string | null;
+  };
+
+  const resolvedDays = routineDays ?? [];
+  const dayIds = resolvedDays.map((d: { id: string }) => d.id);
+
+  const { data: rawExercises } = dayIds.length > 0
+    ? await supabase
+        .from("template_exercises")
+        .select("routine_day_id, name, sets, reps, rest_seconds, youtube_url, technical_note, sort_order, superset_group, library_exercise_id")
+        .in("routine_day_id", dayIds)
+        .order("sort_order")
+    : { data: [] as RawExercise[] };
 
   // Check for existing active assignment (unless force=true)
   if (!data.force) {
@@ -121,18 +143,28 @@ export async function quickAssignAction(data: {
     }
   }
 
-  // Cancel existing active assignment
-  await supabase
+  // Cancel existing active assignment + its pending sessions
+  const { data: oldAssignment } = await supabase
     .from("routine_assignments")
-    .update({ status: "cancelled" })
+    .select("id")
     .eq("trainer_id", user.id)
     .eq("student_id", data.studentId)
-    .eq("status", "active");
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (oldAssignment) {
+    await supabase
+      .from("sessions")
+      .update({ status: "cancelled" })
+      .eq("assignment_id", oldAssignment.id)
+      .eq("status", "pending");
+    await supabase
+      .from("routine_assignments")
+      .update({ status: "cancelled" })
+      .eq("id", oldAssignment.id);
+  }
 
   // Create new assignment
-  // The DB has a unique partial index on (student_id) WHERE status = 'active',
-  // so if a concurrent request already inserted an active assignment, Postgres
-  // will reject this insert with a unique constraint error instead of creating a duplicate.
   const { data: assignment, error: aErr } = await supabase
     .from("routine_assignments")
     .insert({
@@ -148,48 +180,47 @@ export async function quickAssignAction(data: {
     .select()
     .single();
   if (aErr || !assignment) {
-    // Check for unique constraint violation (concurrent assign race condition)
     if (aErr?.code === "23505") {
       return { error: "Este alumno ya tiene una rutina activa. Recargá la página e intentá de nuevo." };
     }
     return { error: "Error al crear la asignación" };
   }
 
-  // Generate sessions using shared helper
-  const numDays = (routineDays ?? []).length || 1;
+  // Build day-exercise map (day_number → sorted exercises)
+  const numDays = resolvedDays.length || 1;
+
+  const daysInfo: RoutineDayInfo[] = resolvedDays.map((d: { id: string; day_number: number; name: string }) => ({
+    id: d.id, day_number: d.day_number, name: d.name,
+  }));
+
+  const dayExercises = resolvedDays.map((d: { id: string; day_number: number }) => ({
+    day_id: d.id,
+    day_number: d.day_number,
+    exercises: (rawExercises ?? [])
+      .filter((ex: RawExercise) => ex.routine_day_id === d.id),
+  }));
+
+  // Generate session slots with cyclic day distribution
   const slots = buildSessionSlots(
     data.startDate, data.trainingDays, data.totalWeeks, data.deloadEveryWeeks, numDays
   );
   if (slots.length === 0) return { error: "No se generaron sesiones" };
 
-  const daysInfo: RoutineDayInfo[] = (routineDays ?? []).map((d: { id: string; day_number: number; name: string }) => ({
-    id: d.id, day_number: d.day_number, name: d.name,
-  }));
-
   const sessionRows = buildSessionRows(
     user.id, data.studentId, template.name, assignment.id, slots, daysInfo
   );
+
+  // Insert sessions and fetch back with routine_day_number to avoid relying on insert order
   const { data: inserted, error: sErr } = await supabase
-    .from("sessions").insert(sessionRows).select("id");
+    .from("sessions")
+    .insert(sessionRows)
+    .select("id, routine_day_number");
   if (sErr || !inserted) return { error: "Error al generar sesiones" };
 
-  // Pair each inserted session with its routine day number (1:1 with slots)
-  const sessionsWithDay = (inserted as { id: string }[]).map((s, i) => ({
+  // Map exercises using actual routine_day_number from DB (not assumed insert order)
+  const sessionsWithDay = (inserted as { id: string; routine_day_number: number | null }[]).map(s => ({
     id: s.id,
-    routineDayNumber: slots[i]!.routineDayNumber,
-  }));
-
-  interface RawExercise {
-    name: string; sets: number; reps: string; rest_seconds: number | null;
-    youtube_url: string | null; technical_note: string | null;
-    sort_order: number; superset_group: string | null;
-  }
-
-  const dayExercises = (routineDays ?? []).map((d: { day_number: number; template_exercises: unknown[] }) => ({
-    day_number: d.day_number,
-    exercises: ([...(d.template_exercises ?? [])] as RawExercise[]).sort(
-      (a, b) => a.sort_order - b.sort_order
-    ),
+    routineDayNumber: s.routine_day_number ?? 1,
   }));
 
   const exRows = buildExerciseRows(sessionsWithDay, dayExercises);

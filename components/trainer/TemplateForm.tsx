@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { Card } from "@/components/ui/Card";
 import { useToast } from "@/components/shared/ToastProvider";
 import { createTemplateAction, updateTemplateAction, type DayDraft } from "@/app/dashboard/templates/actions";
-import { ExerciseLibraryPicker } from "@/components/trainer/ExerciseLibraryPicker";
+import { ExerciseLibraryPicker, type PickedExercise } from "@/components/trainer/ExerciseLibraryPicker";
 import { cn } from "@/lib/utils";
 import type { SessionTemplate, TemplateExercise } from "@/lib/types";
 
@@ -18,6 +18,7 @@ interface ExDraft {
   name: string; sets: number; reps: string;
   rest_seconds: number; youtube_url: string; technical_note: string;
   superset_group: string | null;
+  library_exercise_id?: string | null;
 }
 
 interface ExWithId extends ExDraft { _id: number; }
@@ -64,7 +65,7 @@ function autoSortByBlock(exercises: ExWithId[]): ExWithId[] {
 }
 
 function emptyExFields(id: number): ExWithId {
-  return { _id: id, name: "", sets: 3, reps: "8-12", rest_seconds: 90, youtube_url: "", technical_note: "", superset_group: null };
+  return { _id: id, name: "", sets: 3, reps: "8-12", rest_seconds: 90, youtube_url: "", technical_note: "", superset_group: null, library_exercise_id: null };
 }
 
 function mapTemplateExercises(exs: TemplateExercise[], idCounter: { current: number }): ExWithId[] {
@@ -75,6 +76,7 @@ function mapTemplateExercises(exs: TemplateExercise[], idCounter: { current: num
     youtube_url: ex.youtube_url ?? "",
     technical_note: ex.technical_note ?? "",
     superset_group: ex.superset_group ?? null,
+    library_exercise_id: ex.library_exercise_id ?? null,
   }));
 }
 
@@ -300,6 +302,7 @@ export function TemplateForm({ template, defaultCategoryId }: Props) {
 
   const [name, setName] = useState(template?.name ?? "");
   const [description, setDescription] = useState(template?.description ?? "");
+  const [trainingType, setTrainingType] = useState(template?.training_type ?? "");
 
   const nextIdRef = useRef(0);
 
@@ -611,8 +614,8 @@ export function TemplateForm({ template, defaultCategoryId }: Props) {
     }));
 
     const result = isEdit
-      ? await updateTemplateAction(template!.id, name, description, daysToSave, categoryId)
-      : await createTemplateAction(name, description, daysToSave, categoryId);
+      ? await updateTemplateAction(template!.id, name, description, daysToSave, categoryId, trainingType || null)
+      : await createTemplateAction(name, description, daysToSave, categoryId, trainingType || null);
 
     setLoading(false);
     if (result && "error" in result) {
@@ -662,12 +665,28 @@ export function TemplateForm({ template, defaultCategoryId }: Props) {
         <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wide">Datos de la rutina</h2>
         <Input label="Nombre" placeholder="Ej: Tren superior — Fuerza" value={name} onChange={e => setName(e.target.value)} required />
         <Textarea label="Descripción (opcional)" placeholder="Para qué sirve esta rutina..." value={description} onChange={e => setDescription(e.target.value)} rows={2} />
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-semibold text-gray-700">Tipo de entrenamiento</label>
+          <select
+            value={trainingType}
+            onChange={e => setTrainingType(e.target.value)}
+            className="h-11 w-full rounded-xl border border-gray-200 bg-white px-3.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+          >
+            <option value="">Sin tipo especificado</option>
+            <option value="adaptacion">Adaptación</option>
+            <option value="fuerza">Fuerza</option>
+            <option value="hipertrofia">Hipertrofia</option>
+            <option value="resistencia">Resistencia</option>
+            <option value="funcional">Funcional</option>
+            <option value="otro">Otro</option>
+          </select>
+        </div>
       </Card>
 
       {/* Library picker */}
       {showPicker && (
         <ExerciseLibraryPicker
-          onSelect={ex => addExercise({ ...ex })}
+          onSelect={(ex: PickedExercise) => addExercise({ ...ex })}
           onClose={() => setShowPicker(false)}
         />
       )}
@@ -681,7 +700,7 @@ export function TemplateForm({ template, defaultCategoryId }: Props) {
                 type="button"
                 onClick={() => { setActiveDayKey(day._key); setJoinPrompt(null); }}
                 className={cn(
-                  "px-3 py-1.5 text-xs font-bold transition-all rounded-l-xl",
+                  "px-3 py-1.5 text-xs font-semibold antialiased transition-all rounded-l-xl",
                   days.length > 1 ? "rounded-r-none" : "rounded-xl",
                   activeDayKey === day._key
                     ? "bg-brand-600 text-white shadow-sm"

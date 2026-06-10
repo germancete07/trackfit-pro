@@ -41,7 +41,8 @@ export function buildSessionSlots(
   let cycleDay = 1;
 
   for (let w = 0; w < totalWeeks; w++) {
-    const isDeload = deloadEveryWeeks ? (w + 1) % deloadEveryWeeks === 0 : false;
+    // Require >= 2 to prevent deloadEveryWeeks=1 marking every week as deload
+    const isDeload = deloadEveryWeeks && deloadEveryWeeks >= 2 ? (w + 1) % deloadEveryWeeks === 0 : false;
     for (const dow of sortedDays) {
       const offset = dow === 0 ? 6 : dow - 1;
       const sessionDate = new Date(monday);
@@ -85,13 +86,17 @@ export function buildSessionRows(
 }
 
 export type DbExercise = {
+  routine_day_id?: string | null;
   name: string; sets: number; reps: string;
   rest_seconds: number | null; youtube_url: string | null;
   technical_note: string | null; sort_order: number;
   superset_group: string | null;
+  library_exercise_id?: string | null;
 };
 
 export type RoutineDayWithExercises = {
+  /** DB id of the routine_day row */
+  day_id: string;
   day_number: number;
   exercises: DbExercise[];
 };
@@ -99,6 +104,7 @@ export type RoutineDayWithExercises = {
 /**
  * Build exercise rows for the newly created sessions.
  * Each session gets only the exercises belonging to its routine day.
+ * Looks up by day_number (from session.routineDayNumber).
  */
 export function buildExerciseRows(
   sessions: { id: string; routineDayNumber: number }[],
@@ -117,6 +123,7 @@ export function buildExerciseRows(
       technical_note: ex.technical_note,
       sort_order: ex.sort_order,
       superset_group: ex.superset_group || null,
+      library_exercise_id: ex.library_exercise_id ?? null,
     }));
   });
 }

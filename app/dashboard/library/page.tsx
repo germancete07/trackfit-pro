@@ -14,14 +14,13 @@ export default async function LibraryPage() {
   const { data: exercises } = await supabase
     .from("exercise_library")
     .select("*")
-    .eq("trainer_id", user.id)
-    .order("muscle_group")
+    .or(`trainer_id.eq.${user.id},is_global.eq.true`)
     .order("name");
 
   return (
     <div className="px-4 py-5 flex flex-col gap-4">
       <h1 className="text-xl font-black text-gray-900">Biblioteca de ejercicios</h1>
-      <ExerciseLibrary exercises={exercises ?? []} />
+      <ExerciseLibrary exercises={exercises ?? []} trainerId={user.id} />
     </div>
   );
 }

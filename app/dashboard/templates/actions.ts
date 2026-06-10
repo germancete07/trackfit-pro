@@ -6,6 +6,7 @@ interface ExDraft {
   name: string; sets: number; reps: string;
   rest_seconds: number; youtube_url: string; technical_note: string;
   superset_group: string | null;
+  library_exercise_id?: string | null;
 }
 
 export interface DayDraft {
@@ -22,7 +23,8 @@ export async function createTemplateAction(
   name: string,
   description: string,
   days: DayDraft[],
-  categoryId?: string | null
+  categoryId?: string | null,
+  trainingType?: string | null
 ) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -36,6 +38,7 @@ export async function createTemplateAction(
       name: name.trim(),
       description: description.trim() || null,
       category_id: categoryId || null,
+      training_type: trainingType || null,
     })
     .select()
     .single();
@@ -74,6 +77,7 @@ export async function createTemplateAction(
           technical_note: ex.technical_note.trim() || null,
           sort_order: i,
           superset_group: ex.superset_group || null,
+          library_exercise_id: ex.library_exercise_id ?? null,
         }))
       );
       if (exErr) {
@@ -94,7 +98,8 @@ export async function updateTemplateAction(
   name: string,
   description: string,
   days: DayDraft[],
-  categoryId?: string | null
+  categoryId?: string | null,
+  trainingType?: string | null
 ) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -115,6 +120,7 @@ export async function updateTemplateAction(
     description: description.trim() || null,
   };
   if (categoryId !== undefined) updateData.category_id = categoryId || null;
+  if (trainingType !== undefined) updateData.training_type = trainingType || null;
 
   const { error: tErr } = await supabase
     .from("session_templates")
@@ -187,6 +193,7 @@ export async function updateTemplateAction(
       technical_note: ex.technical_note.trim() || null,
       sort_order: i,
       superset_group: ex.superset_group || null,
+      library_exercise_id: ex.library_exercise_id ?? null,
     }))
   );
 

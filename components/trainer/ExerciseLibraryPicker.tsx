@@ -135,12 +135,23 @@ export function ExerciseLibraryPicker({ onSelect, onClose }: Props) {
           {loading ? (
             <p className="text-center text-sm text-gray-400 py-6">Cargando biblioteca...</p>
           ) : displayed.length === 0 ? (
-            <div className="text-center py-8">
+            <div className="text-center py-8 flex flex-col items-center gap-3">
               <p className="text-sm text-gray-400">
                 {exercises.length === 0
                   ? "La biblioteca está vacía."
                   : "Sin resultados. Probá otros términos."}
               </p>
+              <a
+                href="/dashboard/library"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 hover:text-brand-800 transition-colors"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Crear nuevo ejercicio en biblioteca
+              </a>
             </div>
           ) : (
             <div className="flex flex-col gap-1">
@@ -183,6 +194,23 @@ export function ExerciseLibraryPicker({ onSelect, onClose }: Props) {
             </div>
           )}
         </div>
+
+        {/* Footer: create new exercise */}
+        {!loading && displayed.length > 0 && (
+          <div className="px-5 py-3 border-t border-gray-100 flex-shrink-0">
+            <a
+              href="/dashboard/library"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-sm font-semibold text-gray-400 hover:text-brand-600 transition-colors"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              No encontré el ejercicio — Crear nuevo en biblioteca
+            </a>
+          </div>
+        )}
       </div>
     </div>
   );

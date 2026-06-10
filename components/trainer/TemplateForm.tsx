@@ -236,8 +236,13 @@ const ExerciseRow = React.memo(function ExerciseRow({
 
       {isExpanded && (
         <div className="px-4 pb-4 pt-2 flex flex-col gap-3 border-t border-gray-100">
-          <Input label="Nombre del ejercicio" placeholder="Ej: Press banca con barra" value={ex.name}
-            onChange={e => onUpdateField(id, "name", e.target.value)} required />
+          <div className="flex items-center gap-2 py-0.5">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex-shrink-0">Ejercicio</span>
+            <span className="text-sm font-semibold text-gray-900 flex-1 truncate">{ex.name || "Sin nombre"}</span>
+            {ex.library_exercise_id && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-50 text-brand-500 flex-shrink-0">Biblioteca</span>
+            )}
+          </div>
           <div className="grid grid-cols-3 gap-2">
             <Input label="Series" type="number" inputMode="numeric" min="1" max="20" value={ex.sets}
               onChange={e => onUpdateField(id, "sets", parseInt(e.target.value) || 1)} />
@@ -337,7 +342,7 @@ export function TemplateForm({ template, defaultCategoryId }: Props) {
       id: null,
       day_number: 1,
       name: "Día 1",
-      exercises: [emptyExFields(nextIdRef.current++)],
+      exercises: [],
     }];
   });
 
@@ -348,7 +353,7 @@ export function TemplateForm({ template, defaultCategoryId }: Props) {
 
   // ── Form UI state ─────────────────────────────────────────────────────────
 
-  const [expandedId, setExpandedId] = useState<number | null>(isEdit ? null : (days[0]?.exercises[0]?._id ?? null));
+  const [expandedId, setExpandedId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPicker, setShowPicker] = useState(false);
@@ -462,11 +467,10 @@ export function TemplateForm({ template, defaultCategoryId }: Props) {
       id: null,
       day_number: newDayNumber,
       name: `Día ${newDayNumber}`,
-      exercises: [emptyExFields(nextIdRef.current++)],
+      exercises: [],
     };
     setDays(prev => [...prev, newDay]);
     setActiveDayKey(newKey);
-    setExpandedId(newDay.exercises[0]._id);
   }
 
   function removeDay(dayKey: number) {
@@ -758,16 +762,6 @@ export function TemplateForm({ template, defaultCategoryId }: Props) {
           <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wide">
             Ejercicios ({exercises.length})
           </h2>
-          <button
-            type="button"
-            onClick={() => setShowPicker(true)}
-            className="text-xs text-brand-500 font-semibold flex items-center gap-1.5 hover:text-brand-700 transition-colors"
-          >
-            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
-            </svg>
-            Desde biblioteca
-          </button>
         </div>
 
         {/* Exercises */}
@@ -814,13 +808,13 @@ export function TemplateForm({ template, defaultCategoryId }: Props) {
 
         <button
           type="button"
-          onClick={() => addExercise()}
+          onClick={() => setShowPicker(true)}
           className="flex items-center justify-center gap-2 h-12 rounded-2xl border-2 border-dashed border-gray-200 text-sm font-semibold text-gray-400 hover:border-brand-300 hover:text-brand-500 hover:bg-brand-50/30 transition-all"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
-          Agregar ejercicio
+          Agregar ejercicio desde biblioteca
         </button>
       </div>
 

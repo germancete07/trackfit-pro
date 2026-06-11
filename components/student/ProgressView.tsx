@@ -112,7 +112,7 @@ function PRGroupedList({ prs }: { prs: PR[] }) {
               return (
                 <div key={pr.exercise_name} className="flex items-center gap-2">
                   <span className="text-xs font-black w-5 text-center leading-none">
-                    {rank === 0 ? "🥇" : rank === 1 ? "🥈" : rank === 2 ? "🥉" : <span className="text-gray-300">{rank + 1}</span>}
+                    {rank === 0 ? "🥇" : rank === 1 ? "🥈" : rank === 2 ? "🥉" : <span className="text-gray-500">{rank + 1}</span>}
                   </span>
                   <p className="text-sm text-gray-800 flex-1 truncate font-medium">{pr.exercise_name}</p>
                   <div className="flex flex-col items-end">
@@ -129,7 +129,7 @@ function PRGroupedList({ prs }: { prs: PR[] }) {
           </div>
         </div>
       ))}
-      <p className="text-[10px] text-gray-300 text-right">* 1RM estimado (Epley) — teórico</p>
+      <p className="text-[10px] text-gray-400 text-right">* 1RM estimado (Epley) — teórico</p>
     </div>
   );
 }

@@ -21,15 +21,6 @@ interface ModalProps {
   panelBackground?: string;
 }
 
-/**
- * Base modal with:
- * - createPortal → renders at document.body, never clipped by parent transforms
- * - Mobile (<640 px): bottom sheet (rounded-t-2xl)
- * - Desktop (≥640 px): centered card (rounded-2xl, max-w-[520px])
- * - Sticky header with title + close button
- * - Scrollable body (overflow-y: auto, max-height: 90vh)
- * - Escape key closes
- */
 export function Modal({
   title,
   subtitle,
@@ -43,202 +34,146 @@ export function Modal({
 }: ModalProps) {
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     if (!onClose) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
   if (!mounted) return null;
 
+  const bg = panelBackground ?? "var(--surface-elevated, #fff)";
+
   return createPortal(
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "flex-end",
-        backgroundColor: "rgba(0,0,0,0.45)",
-        backdropFilter: "blur(4px)",
-        WebkitBackdropFilter: "blur(4px)",
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose?.();
-      }}
-    >
+    <>
       <style>{`
-        @media (min-width: 640px) {
-          .modal-panel {
-            position: absolute !important;
-            top: 50% !important;
-            left: 50% !important;
-            bottom: auto !important;
-            transform: translate(-50%, -50%) !important;
-            border-radius: 16px !important;
-            width: calc(100% - 32px) !important;
+        .tf-modal-overlay-${zIndex} {
+          position: fixed;
+          inset: 0;
+          background: rgba(0,0,0,0.5);
+          z-index: ${zIndex};
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 16px;
+          overflow-y: auto;
+        }
+        .tf-modal-container-${zIndex} {
+          border-radius: 16px;
+          width: 100%;
+          max-width: ${maxWidth}px;
+          max-height: calc(100vh - 32px);
+          display: flex;
+          flex-direction: column;
+          position: relative;
+          margin: auto;
+          box-shadow: 0 8px 40px rgba(0,0,0,0.22);
+        }
+        .tf-modal-header-${zIndex} {
+          padding: 16px 20px;
+          border-bottom: 1px solid rgba(0,0,0,0.07);
+          flex-shrink: 0;
+          position: sticky;
+          top: 0;
+          border-radius: 16px 16px 0 0;
+          z-index: 1;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .tf-modal-body-${zIndex} {
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
+          flex: 1;
+        }
+        .tf-modal-footer-${zIndex} {
+          padding: 12px 20px;
+          border-top: 1px solid rgba(0,0,0,0.07);
+          flex-shrink: 0;
+          border-radius: 0 0 16px 16px;
+        }
+        @media (max-width: 639px) {
+          .tf-modal-overlay-${zIndex} {
+            align-items: flex-end;
+            padding: 0;
+          }
+          .tf-modal-container-${zIndex} {
+            border-radius: 16px 16px 0 0;
+            max-height: 90vh;
+          }
+          .tf-modal-header-${zIndex} {
+            border-radius: 16px 16px 0 0;
           }
         }
       `}</style>
 
       <div
-        className="modal-panel"
-        style={{
-          position: "relative",
-          width: "100%",
-          maxWidth,
-          maxHeight: "90vh",
-          display: "flex",
-          flexDirection: "column",
-          backgroundColor: panelBackground ?? "var(--surface-elevated, #fff)",
-          borderRadius: "16px 16px 0 0",
-          boxShadow: "0 -4px 40px rgba(0,0,0,0.18)",
-          overflow: "hidden",
-        }}
-        onClick={(e) => e.stopPropagation()}
+        className={`tf-modal-overlay-${zIndex}`}
+        onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}
       >
-        {/* Drag handle — mobile only */}
         <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            paddingTop: 10,
-            paddingBottom: 4,
-            flexShrink: 0,
-          }}
+          className={`tf-modal-container-${zIndex}`}
+          style={{ background: bg }}
+          onClick={(e) => e.stopPropagation()}
         >
-          <div
-            style={{
-              height: 4,
-              width: 36,
-              borderRadius: 9999,
-              backgroundColor: panelBackground ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.12)",
-            }}
-          />
-        </div>
+          {/* Header */}
+          {(title || onClose || headerExtra) && (
+            <div
+              className={`tf-modal-header-${zIndex}`}
+              style={{ background: bg }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {title && (
+                  <p style={{ margin: 0, fontWeight: 800, fontSize: 16, color: "#111827", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {title}
+                  </p>
+                )}
+                {subtitle && (
+                  <p style={{ margin: 0, fontSize: 12, color: "#6b7280", marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {subtitle}
+                  </p>
+                )}
+              </div>
 
-        {/* Sticky header */}
-        {(title || onClose) && (
-          <div
-            style={{
-              position: "sticky",
-              top: 0,
-              zIndex: 1,
-              flexShrink: 0,
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "10px 16px 12px",
-              borderBottom: "1px solid rgba(0,0,0,0.06)",
-              backgroundColor: "var(--surface-elevated, #fff)",
-            }}
-          >
-            <div style={{ flex: 1, minWidth: 0 }}>
-              {title && (
-                <p
+              {headerExtra}
+
+              {onClose && (
+                <button
+                  onClick={onClose}
                   style={{
-                    margin: 0,
-                    fontWeight: 800,
-                    fontSize: 16,
-                    color: "#111827",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
+                    flexShrink: 0, height: 32, width: 32, borderRadius: 9999,
+                    border: "none", background: "rgba(0,0,0,0.06)", cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center", color: "#6b7280",
                   }}
                 >
-                  {title}
-                </p>
-              )}
-              {subtitle && (
-                <p
-                  style={{
-                    margin: 0,
-                    fontSize: 12,
-                    color: "#6b7280",
-                    marginTop: 1,
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  {subtitle}
-                </p>
+                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               )}
             </div>
+          )}
 
-            {headerExtra}
-
-            {onClose && (
-              <button
-                onClick={onClose}
-                style={{
-                  flexShrink: 0,
-                  height: 32,
-                  width: 32,
-                  borderRadius: 9999,
-                  border: "none",
-                  background: "rgba(0,0,0,0.06)",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "#6b7280",
-                }}
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2.5}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            )}
+          {/* Body */}
+          <div className={`tf-modal-body-${zIndex}`}>
+            {children}
           </div>
-        )}
 
-        {/* Scrollable body */}
-        <div
-          style={{
-            flex: 1,
-            overflowY: "auto",
-            overflowX: "hidden",
-            WebkitOverflowScrolling: "touch",
-          }}
-        >
-          {children}
+          {/* Footer */}
+          {footer && (
+            <div
+              className={`tf-modal-footer-${zIndex}`}
+              style={{ background: bg }}
+            >
+              {footer}
+            </div>
+          )}
         </div>
-
-        {/* Footer */}
-        {footer && (
-          <div
-            style={{
-              flexShrink: 0,
-              borderTop: "1px solid rgba(0,0,0,0.06)",
-              backgroundColor: "var(--surface-elevated, #fff)",
-            }}
-          >
-            {footer}
-          </div>
-        )}
       </div>
-    </div>,
+    </>,
     document.body
   );
 }

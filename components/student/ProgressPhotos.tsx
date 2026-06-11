@@ -208,7 +208,7 @@ export function ProgressPhotos({ photos: initial, studentId, readOnly = false }:
                           </>
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
-                            <span className="text-[10px] text-gray-300 font-semibold">{label}</span>
+                            <span className="text-[10px] text-gray-500 font-semibold">{label}</span>
                           </div>
                         )}
                       </div>
@@ -265,13 +265,13 @@ export function ProgressPhotos({ photos: initial, studentId, readOnly = false }:
                           <div className="aspect-[3/4] rounded-xl overflow-hidden bg-gray-100 relative">
                             {photoA
                               ? <Image src={photoA.photo_url} alt={`${label} ${compareA}`} fill sizes="50vw" className="object-cover" loading="lazy" />
-                              : <div className="w-full h-full flex items-center justify-center"><span className="text-xs text-gray-300">Sin foto</span></div>}
+                              : <div className="w-full h-full flex items-center justify-center"><span className="text-xs text-gray-500">Sin foto</span></div>}
                             <span className="absolute top-1.5 left-1.5 text-[9px] font-bold text-white bg-black/50 px-1.5 py-0.5 rounded-full">{compareA}</span>
                           </div>
                           <div className="aspect-[3/4] rounded-xl overflow-hidden bg-gray-100 relative">
                             {photoB
                               ? <Image src={photoB.photo_url} alt={`${label} ${compareB}`} fill sizes="50vw" className="object-cover" loading="lazy" />
-                              : <div className="w-full h-full flex items-center justify-center"><span className="text-xs text-gray-300">Sin foto</span></div>}
+                              : <div className="w-full h-full flex items-center justify-center"><span className="text-xs text-gray-500">Sin foto</span></div>}
                             <span className="absolute top-1.5 left-1.5 text-[9px] font-bold text-white bg-black/50 px-1.5 py-0.5 rounded-full">{compareB}</span>
                           </div>
                         </div>

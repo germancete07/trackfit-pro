@@ -234,7 +234,7 @@ export function MonthlyCalendar({ sessions, assignment, totalSessions, completed
         {/* Day headers */}
         <div className="grid grid-cols-7 mb-1">
           {DAY_HEADERS.map((h) => (
-            <div key={h} className="text-center text-[11px] font-bold text-gray-400 py-1">{h}</div>
+            <div key={h} className="text-center text-[11px] font-bold py-1" style={{ color: "#888780" }}>{h}</div>
           ))}
         </div>
 
@@ -271,7 +271,7 @@ export function MonthlyCalendar({ sessions, assignment, totalSessions, completed
                   style={{
                     fontSize: 11,
                     fontWeight: isToday ? 900 : 600,
-                    color: isToday ? "#534AB7" : "#9CA3AF",
+                    color: isToday ? "#534AB7" : "#888780",
                     lineHeight: 1,
                     marginBottom: 4,
                   }}

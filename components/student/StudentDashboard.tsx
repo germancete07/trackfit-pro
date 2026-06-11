@@ -57,20 +57,27 @@ export function StudentDashboard({
 
       {/* TODAY'S WORKOUT — big card */}
       {!trainedToday && todaySession && (
-        <Card className="bg-gradient-to-br from-brand-500 to-brand-700 border-0 shadow-lg shadow-brand-500/20" padding="lg">
+        <Card
+          padding="lg"
+          style={{
+            background: "rgba(255,255,255,0.92)",
+            borderLeft: "4px solid #534AB7",
+            boxShadow: "0 4px 20px rgba(83,74,183,0.12)",
+          }}
+        >
           <div className="flex flex-col gap-4">
             <div>
-              <p className="text-white/70 text-xs font-bold uppercase tracking-widest mb-1">
+              <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: "#534AB7" }}>
                 {todaySession.is_deload ? "HOY · SEMANA DE DESCARGA" : "HOY"}
               </p>
-              <h2 className="text-xl font-black text-white leading-tight">{todaySession.name}</h2>
+              <h2 className="text-xl font-black leading-tight" style={{ color: "#2C2C2A" }}>{todaySession.name}</h2>
               {todaySession.routine_day_name && (
-                <p className="text-white/70 text-sm font-semibold mt-0.5">{todaySession.routine_day_name}</p>
+                <p className="text-sm font-semibold mt-0.5" style={{ color: "#534AB7" }}>{todaySession.routine_day_name}</p>
               )}
-              <p className="text-white/60 text-sm mt-0.5">{formatDate(todaySession.scheduled_date)}</p>
+              <p className="text-sm mt-0.5" style={{ color: "#888780" }}>{formatDate(todaySession.scheduled_date)}</p>
             </div>
             <Link href={`/dashboard/my-sessions/${todaySession.id}`}>
-              <Button className="w-full bg-white text-brand-700 hover:bg-brand-50 font-black text-base py-3 shadow-none border-0">
+              <Button className="w-full font-black text-base py-3 shadow-none border-0" style={{ background: "#534AB7", color: "white" }}>
                 Entrenar ahora →
               </Button>
             </Link>
@@ -116,30 +123,32 @@ export function StudentDashboard({
       {/* WEEKLY STREAK */}
       <Card padding="md" className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-bold text-gray-700">Esta semana</p>
-          <p className="text-xs font-bold text-brand-500">{trainedCount} de 7 días activo{trainedCount !== 1 ? "s" : ""}</p>
+          <p className="text-sm font-bold" style={{ color: "#2C2C2A" }}>Esta semana</p>
+          <p className="text-xs font-bold" style={{ color: "#534AB7" }}>{trainedCount} de 7 días activo{trainedCount !== 1 ? "s" : ""}</p>
         </div>
         <div className="flex gap-1.5">
-          {streakDays.map((d, i) => (
-            <div key={i} className="flex-1 flex flex-col items-center gap-1">
-              <div
-                className={`h-8 w-full rounded-lg flex items-center justify-center ${
-                  d.trained
-                    ? "bg-brand-500 shadow-sm shadow-brand-500/30"
-                    : d.date === new Date().toISOString().split("T")[0]
-                    ? "bg-brand-100 ring-2 ring-brand-400"
-                    : "bg-gray-100"
-                }`}
-              >
-                {d.trained && (
-                  <svg className="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                  </svg>
-                )}
+          {streakDays.map((d, i) => {
+            const isToday = d.date === new Date().toISOString().split("T")[0];
+            const cellBg = d.trained ? "#EAF3DE" : isToday ? "#534AB7" : "#F0EEE9";
+            const labelColor = d.trained ? "#3B6D11" : isToday ? "#534AB7" : "#888780";
+            return (
+              <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                <div
+                  className="h-8 w-full rounded-lg flex items-center justify-center"
+                  style={{ background: cellBg }}
+                >
+                  {d.trained ? (
+                    <svg className="h-3.5 w-3.5" style={{ color: "#3B6D11" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                  ) : (
+                    <span className="text-[10px] font-bold" style={{ color: isToday ? "white" : "#888780" }}>{d.label}</span>
+                  )}
+                </div>
+                <span className="text-[10px] font-bold" style={{ color: labelColor }}>{d.label}</span>
               </div>
-              <span className={`text-[10px] font-bold ${d.trained ? "text-brand-600" : "text-gray-400"}`}>{d.label}</span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </Card>
 

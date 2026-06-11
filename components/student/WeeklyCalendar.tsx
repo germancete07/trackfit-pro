@@ -65,20 +65,18 @@ export function WeeklyCalendar({ trainingDays, activeDates }: Props) {
                   {DAY_LABELS[i]}
                 </p>
                 <div
-                  className={cn(
-                    "h-10 w-10 rounded-full flex items-center justify-center text-sm font-bold transition-all",
-                    isDone
-                      ? "bg-green-500 text-white shadow-sm shadow-green-500/30"
-                      : isToday && isTraining
-                      ? "bg-brand-500 text-white ring-2 ring-offset-1 ring-brand-300"
-                      : isToday
-                      ? "ring-2 ring-brand-400 text-brand-600"
-                      : isTraining && isPast
-                      ? "bg-brand-100 text-brand-400"
-                      : isTraining
-                      ? "bg-brand-50 border border-brand-200 text-brand-600"
-                      : "text-gray-300"
-                  )}
+                  className="h-10 w-10 rounded-full flex items-center justify-center text-sm font-bold transition-all"
+                  style={{
+                    background: isDone ? "#EAF3DE" :
+                      isToday ? "#534AB7" :
+                      (isTraining && !isPast) ? "rgba(83,74,183,0.1)" :
+                      (isTraining && isPast) ? "#F0EEE9" :
+                      "transparent",
+                    color: isDone ? "#3B6D11" :
+                      isToday ? "white" :
+                      isTraining ? "#534AB7" :
+                      "#888780",
+                  }}
                 >
                   {isDone ? (
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -116,7 +114,7 @@ export function WeeklyCalendar({ trainingDays, activeDates }: Props) {
         </h2>
         <div className="grid grid-cols-7 gap-1 text-center">
           {["L", "M", "X", "J", "V", "S", "D"].map((d) => (
-            <p key={d} className="text-[10px] font-bold text-gray-300 pb-1">{d}</p>
+            <p key={d} className="text-[10px] font-bold pb-1" style={{ color: "#888780" }}>{d}</p>
           ))}
           {monthCells.map((date, i) => {
             if (!date) return <div key={i} />;
@@ -128,13 +126,11 @@ export function WeeklyCalendar({ trainingDays, activeDates }: Props) {
             return (
               <div key={i} className="flex items-center justify-center py-0.5">
                 <div
-                  className={cn(
-                    "h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-semibold",
-                    isDone ? "bg-green-500 text-white" :
-                    isToday ? "bg-brand-500 text-white" :
-                    isTraining ? "bg-brand-50 text-brand-500 border border-brand-200" :
-                    "text-gray-400"
-                  )}
+                  className="h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-semibold"
+                  style={{
+                    background: isDone ? "#EAF3DE" : isToday ? "#534AB7" : isTraining ? "rgba(83,74,183,0.1)" : "transparent",
+                    color: isDone ? "#3B6D11" : isToday ? "white" : isTraining ? "#534AB7" : "#888780",
+                  }}
                 >
                   {date.getDate()}
                 </div>

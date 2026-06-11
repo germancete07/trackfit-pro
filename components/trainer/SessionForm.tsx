@@ -203,7 +203,7 @@ export function SessionForm({ trainerId, students, defaultStudentId, templates =
               <Input label="Reps" placeholder="8-12" inputMode="numeric" value={ex.reps} onChange={(e) => updateExercise(i, "reps", e.target.value)} />
               <Input label="Descanso (s)" type="number" inputMode="numeric" min="0" value={ex.rest_seconds} onChange={(e) => updateExercise(i, "rest_seconds", parseInt(e.target.value) || 0)} />
             </div>
-            <Input label="Video YouTube (opcional)" type="url" placeholder="https://youtube.com/watch?v=..." value={ex.youtube_url} onChange={(e) => updateExercise(i, "youtube_url", e.target.value)} />
+            <Input label="Video YouTube (opcional)" type="url" placeholder="youtube.com/watch?v=..., youtu.be/..., /shorts/..." value={ex.youtube_url} onChange={(e) => updateExercise(i, "youtube_url", e.target.value)} />
             <Textarea label="Nota tecnica (opcional)" placeholder="Clave técnica, errores comunes..." value={ex.technical_note} onChange={(e) => updateExercise(i, "technical_note", e.target.value)} rows={2} />
           </Card>
         ))}

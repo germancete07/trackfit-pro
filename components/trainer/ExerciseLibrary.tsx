@@ -231,7 +231,7 @@ function ExerciseModal({ editing, onClose }: {
           </div>
         </div>
 
-        <Input label="Video YouTube (opcional)" type="url" placeholder="https://youtube.com/watch?v=..." value={form.youtube_url}
+        <Input label="Video YouTube (opcional)" type="url" placeholder="youtube.com/watch?v=..., youtu.be/..., /shorts/..." value={form.youtube_url}
           onChange={e => setField("youtube_url", e.target.value)} />
         <Textarea label="Nota técnica (opcional)" placeholder="Claves técnicas, errores comunes..." value={form.description}
           onChange={e => setField("description", e.target.value)} rows={3} />

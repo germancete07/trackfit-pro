@@ -281,7 +281,7 @@ const ExerciseRow = React.memo(function ExerciseRow({
             )}
           </div>
 
-          <Input label="Video YouTube (opcional)" type="url" placeholder="https://youtube.com/watch?v=..." value={localYt}
+          <Input label="Video YouTube (opcional)" type="url" placeholder="youtube.com/watch?v=..., youtu.be/..., /shorts/..." value={localYt}
             onChange={e => { setLocalYt(e.target.value); onUpdateField(id, "youtube_url", e.target.value); }}
             onBlur={() => onUpdateField(id, "youtube_url", localYt)} />
           <Textarea label="Nota técnica (opcional)" placeholder="Clave técnica, errores comunes..." value={localNote}

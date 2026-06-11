@@ -22,14 +22,29 @@ export function getWeekStart(date: Date = new Date()) {
   return d;
 }
 
-export function getYoutubeThumbnail(url: string) {
-  const match = url.match(/(?:v=|youtu\.be\/)([^&?/]+)/);
-  return match ? `https://img.youtube.com/vi/${match[1]}/mqdefault.jpg` : null;
+function extractYoutubeId(url: string): string | null {
+  if (!url) return null;
+  const patterns = [
+    /youtube\.com\/watch\?v=([^&?/]+)/,
+    /youtube\.com\/shorts\/([^&?/]+)/,
+    /youtu\.be\/([^&?/]+)/,
+    /youtube\.com\/embed\/([^&?/]+)/,
+  ];
+  for (const p of patterns) {
+    const m = url.match(p);
+    if (m) return m[1];
+  }
+  return null;
 }
 
-export function getYoutubeEmbedUrl(url: string) {
-  const match = url.match(/(?:v=|youtu\.be\/)([^&?/]+)/);
-  return match ? `https://www.youtube.com/embed/${match[1]}` : null;
+export function getYoutubeThumbnail(url: string) {
+  const id = extractYoutubeId(url);
+  return id ? `https://img.youtube.com/vi/${id}/mqdefault.jpg` : null;
+}
+
+export function getYoutubeEmbedUrl(url: string): string | null {
+  const id = extractYoutubeId(url);
+  return id ? `https://www.youtube.com/embed/${id}` : null;
 }
 
 export function rpeColor(rpe: number) {

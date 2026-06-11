@@ -83,18 +83,22 @@ export async function GET(req: NextRequest) {
     .select("user_id, endpoint, p256dh, auth")
     .in("user_id", toNotify);
 
-  const payload = JSON.stringify({
-    title: "Dia de entrenamiento",
-    body: "Hoy es tu dia de entrenamiento. Abre TrackFit Pro para ver tu sesion.",
-    url: "/dashboard/my-sessions",
-  });
+  const payload = Buffer.from(
+    JSON.stringify({
+      title: "Día de entrenamiento 💪",
+      body: "Hoy es tu día de entrenamiento. Abrí TrackFit Pro para ver tu sesión.",
+      url: "/dashboard/my-sessions",
+    }),
+    "utf8"
+  );
 
   let sent = 0;
   for (const sub of subs ?? []) {
     try {
       await webpush.sendNotification(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-        payload
+        payload,
+        { contentEncoding: "aes128gcm", TTL: 86400 }
       );
       sent++;
     } catch {}

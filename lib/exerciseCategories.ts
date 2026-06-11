@@ -24,10 +24,12 @@ export const CATEGORIES: Category[] = [
   {
     value: "sup", label: "Tren superior", emoji: "💪", color: "#185FA5", bg: "#E6F1FB",
     subcategories: [
-      { value: "empuje-h", label: "Empuje horizontal" },
-      { value: "empuje-v", label: "Empuje vertical" },
-      { value: "tiron-h",  label: "Tirón horizontal" },
-      { value: "tiron-v",  label: "Tirón vertical" },
+      { value: "empuje-h",    label: "Empuje horizontal" },
+      { value: "empuje-v",    label: "Empuje vertical" },
+      { value: "tiron-h",     label: "Tirón horizontal" },
+      { value: "tiron-v",     label: "Tirón vertical" },
+      { value: "mono-empuje", label: "Monoarticular de empuje 🎯" },
+      { value: "mono-tiron",  label: "Monoarticular de tirón 🎯" },
     ],
   },
   {

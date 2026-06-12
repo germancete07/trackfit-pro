@@ -16,9 +16,10 @@ export const CATEGORIES: Category[] = [
   {
     value: "inf", label: "Tren inferior", emoji: "🦵", color: "#854F0B", bg: "#FAEEDA",
     subcategories: [
-      { value: "rodilla",    label: "Rodilla dominante" },
-      { value: "cadera",     label: "Cadera dominante" },
-      { value: "unilateral", label: "Unilateral" },
+      { value: "rodilla",         label: "Rodilla dominante" },
+      { value: "cadera",          label: "Cadera dominante" },
+      { value: "unilateral",      label: "Unilateral" },
+      { value: "flexion-plantar", label: "Flexión plantar 🦶" },
     ],
   },
   {

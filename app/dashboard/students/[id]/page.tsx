@@ -12,6 +12,7 @@ import { StudentCorrectionsPanel } from "@/components/trainer/StudentCorrections
 import { MeasurementsForm } from "@/components/trainer/MeasurementsForm";
 import { ProgressPhotos } from "@/components/student/ProgressPhotos";
 import { ProgressView } from "@/components/student/ProgressView";
+import { TrainerLogSessionButton } from "@/components/trainer/TrainerLogSessionButton";
 import { cn } from "@/lib/utils";
 import type { Profile } from "@/lib/types";
 
@@ -508,6 +509,8 @@ export default async function StudentDetailPage({
                 Asignar nueva rutina
               </Button>
             </Link>
+
+            <TrainerLogSessionButton studentId={params.id} />
 
             <ActiveAssignmentCard
               assignment={activeAssignment}

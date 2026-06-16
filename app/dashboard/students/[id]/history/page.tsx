@@ -38,7 +38,7 @@ export default async function StudentHistoryPage({ params }: { params: { id: str
 
   const { data: logs } = await supabase
     .from("exercise_logs")
-    .select("*, exercise:exercises(name, reps, session:sessions(name))")
+    .select("*, exercise:exercises(name, reps, session:sessions(name, logged_by_trainer))")
     .eq("student_id", params.id)
     .gte("logged_at", eightWeeksAgo.toISOString())
     .order("logged_at", { ascending: false });
@@ -123,6 +123,11 @@ export default async function StudentHistoryPage({ params }: { params: { id: str
                       <p className="text-xs text-gray-400">
                         {(log.exercise as any)?.session?.name} · {formatDate(log.logged_at)}
                       </p>
+                      {(log.exercise as any)?.session?.logged_by_trainer && (
+                        <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-300 border border-brand-100 dark:border-brand-500/20">
+                          Cargado por entrenador
+                        </span>
+                      )}
                       {log.comment && <p className="text-xs text-gray-500 mt-0.5 italic">"{log.comment}"</p>}
                     </div>
                     <div className="text-right flex-shrink-0">

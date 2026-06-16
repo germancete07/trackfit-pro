@@ -164,9 +164,10 @@ export function ExerciseLibraryPicker({ onSelect, onClose }: Props) {
             style={{
               width: "100%", boxSizing: "border-box",
               height: 40, borderRadius: 12,
-              border: "1.5px solid #e5e7eb", background: "#f9fafb",
+              border: "1.5px solid var(--border-input)", background: "var(--surface-input)",
               paddingLeft: 34, paddingRight: 12,
               fontSize: 14, outline: "none",
+              color: "var(--text-primary)",
             }}
           />
         </div>
@@ -262,17 +263,17 @@ function ExerciseList({ exercises, onSelect }: {
               borderRadius: 12, border: "none", background: "none",
               cursor: "pointer", display: "flex", alignItems: "center", gap: 10,
             }}
-            onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#f9fafb")}
+            onMouseEnter={e => (e.currentTarget.style.backgroundColor = "var(--surface-input)")}
             onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
           >
             {cat && (
               <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: cat.color, flexShrink: 0 }} />
             )}
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {ex.name}
               </p>
-              <p style={{ margin: 0, fontSize: 11, color: "#9ca3af", marginTop: 1 }}>
+              <p style={{ margin: 0, fontSize: 11, color: "var(--text-secondary)", marginTop: 1 }}>
                 {[muscle, ex.equipment].filter(Boolean).join(" · ")}
               </p>
             </div>

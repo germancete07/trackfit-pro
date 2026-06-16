@@ -38,7 +38,7 @@ export default async function StudentHistoryPage({ params }: { params: { id: str
 
   const { data: logs } = await supabase
     .from("exercise_logs")
-    .select("*, exercise:exercises(name, reps, session:sessions(name, logged_by_trainer))")
+    .select("*, exercise:exercises(name, reps, session:sessions(name, logged_by_trainer, is_manual))")
     .eq("student_id", params.id)
     .gte("logged_at", eightWeeksAgo.toISOString())
     .order("logged_at", { ascending: false });
@@ -123,7 +123,12 @@ export default async function StudentHistoryPage({ params }: { params: { id: str
                       <p className="text-xs text-gray-400">
                         {(log.exercise as any)?.session?.name} · {formatDate(log.logged_at)}
                       </p>
-                      {(log.exercise as any)?.session?.logged_by_trainer && (
+                      {(log.exercise as any)?.session?.is_manual && (
+                        <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-100 dark:border-amber-500/20">
+                          Manual
+                        </span>
+                      )}
+                      {!((log.exercise as any)?.session?.is_manual) && (log.exercise as any)?.session?.logged_by_trainer && (
                         <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-300 border border-brand-100 dark:border-brand-500/20">
                           Cargado por entrenador
                         </span>

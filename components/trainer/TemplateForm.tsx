@@ -160,6 +160,9 @@ const ExerciseRow = React.memo(function ExerciseRow({
 }: ExerciseRowProps) {
   const [localYt, setLocalYt] = useState(ex.youtube_url);
   const [localNote, setLocalNote] = useState(ex.technical_note);
+  // String state so inputs can be temporarily empty without forcing to 0/1
+  const [localSets, setLocalSets] = useState(String(ex.sets));
+  const [localRest, setLocalRest] = useState(String(ex.rest_seconds));
 
   const prevYt = useRef(ex.youtube_url);
   const prevNote = useRef(ex.technical_note);
@@ -170,12 +173,10 @@ const ExerciseRow = React.memo(function ExerciseRow({
 
   return (
     <div
-      draggable
-      onDragStart={e => onDragStart(e, index)}
       onDragEnter={() => onDragEnter(index)}
       onDragOver={onDragOver}
       onDrop={e => onDrop(e, index)}
-      onDragEnd={onDragEnd}
+      style={{ touchAction: "pan-y" }}
       className={cn(
         "rounded-2xl border bg-white transition-all duration-150",
         isDragging && "opacity-40 shadow-lg",
@@ -195,7 +196,14 @@ const ExerciseRow = React.memo(function ExerciseRow({
           </button>
         </div>
 
-        <div className="hidden sm:flex flex-shrink-0 cursor-grab active:cursor-grabbing p-1.5 -ml-1 text-gray-300 hover:text-gray-500 transition-colors" title="Arrastrar para reordenar">
+        <div
+          draggable
+          onDragStart={e => onDragStart(e, index)}
+          onDragEnd={onDragEnd}
+          style={{ touchAction: "none" }}
+          className="hidden sm:flex flex-shrink-0 cursor-grab active:cursor-grabbing p-1.5 -ml-1 text-gray-300 hover:text-gray-500 transition-colors"
+          title="Arrastrar para reordenar"
+        >
           <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
             <circle cx="7" cy="5" r="1.5" /><circle cx="13" cy="5" r="1.5" />
             <circle cx="7" cy="10" r="1.5" /><circle cx="13" cy="10" r="1.5" />
@@ -244,12 +252,16 @@ const ExerciseRow = React.memo(function ExerciseRow({
             )}
           </div>
           <div className="grid grid-cols-3 gap-2">
-            <Input label="Series" type="number" inputMode="numeric" min="1" max="20" value={ex.sets}
-              onChange={e => onUpdateField(id, "sets", parseInt(e.target.value) || 1)} />
+            <Input label="Series" type="number" inputMode="numeric" min="1" max="20"
+              value={localSets}
+              onChange={e => setLocalSets(e.target.value)}
+              onBlur={() => { const v = parseInt(localSets); onUpdateField(id, "sets", isNaN(v) ? 1 : Math.max(1, v)); setLocalSets(String(isNaN(v) ? 1 : Math.max(1, v))); }} />
             <Input label="Reps" placeholder="8-12" value={ex.reps}
               onChange={e => onUpdateField(id, "reps", e.target.value)} />
-            <Input label="Descanso (s)" type="number" inputMode="numeric" min="0" value={ex.rest_seconds}
-              onChange={e => onUpdateField(id, "rest_seconds", parseInt(e.target.value) || 0)} />
+            <Input label="Descanso (s)" type="number" inputMode="numeric" min="0"
+              value={localRest}
+              onChange={e => setLocalRest(e.target.value)}
+              onBlur={() => { const v = parseInt(localRest); onUpdateField(id, "rest_seconds", isNaN(v) ? 0 : Math.max(0, v)); setLocalRest(String(isNaN(v) ? 0 : Math.max(0, v))); }} />
           </div>
 
           <div className="flex flex-col gap-2">

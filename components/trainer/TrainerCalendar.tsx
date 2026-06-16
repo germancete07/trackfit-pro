@@ -1,18 +1,22 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { TrainerManualSessionModal } from "@/components/trainer/TrainerManualSessionModal";
 
 export interface CalendarSession {
   id: string;
   scheduled_date: string;
   status: "pending" | "active" | "completed";
   student_id: string;
+  session_name: string | null;
   routine_day_name: string | null;
   student_name: string;
   student_avatar: string | null;
+  completed_at: string | null;
+  logged_by_trainer: boolean;
 }
 
 interface Props {
@@ -32,6 +36,13 @@ const MONTHS_SHORT = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct
 
 type SessionStatus = "completed" | "today_pending" | "scheduled" | "missed";
 
+const STATUS_STYLE: Record<SessionStatus, { bg: string; text: string; dot: string; label: string }> = {
+  completed:     { bg: "#dcfce7", text: "#16a34a", dot: "#16a34a", label: "Completó" },
+  today_pending: { bg: "#fef9c3", text: "#b45309", dot: "#b45309", label: "Pendiente" },
+  scheduled:     { bg: "#ede9fe", text: "#7c3aed", dot: "#7c3aed", label: "Programado" },
+  missed:        { bg: "#fee2e2", text: "#dc2626", dot: "#dc2626", label: "No entrenó" },
+};
+
 function getStatus(sess: CalendarSession, today: string): SessionStatus {
   if (sess.status === "completed") return "completed";
   if (sess.scheduled_date < today) return "missed";
@@ -39,12 +50,15 @@ function getStatus(sess: CalendarSession, today: string): SessionStatus {
   return "scheduled";
 }
 
-const STATUS_STYLE: Record<SessionStatus, { bg: string; text: string; dot: string; label: string }> = {
-  completed:     { bg: "#dcfce7", text: "#16a34a", dot: "#16a34a", label: "Completó" },
-  today_pending: { bg: "#fef9c3", text: "#b45309", dot: "#b45309", label: "Pendiente hoy" },
-  scheduled:     { bg: "#ede9fe", text: "#7c3aed", dot: "#7c3aed", label: "Programado" },
-  missed:        { bg: "#fee2e2", text: "#dc2626", dot: "#dc2626", label: "No entrenó" },
-};
+function getDayAggStatus(daySessions: CalendarSession[], today: string): SessionStatus | null {
+  if (daySessions.length === 0) return null;
+  const statuses = daySessions.map(s => getStatus(s, today));
+  if (statuses.every(s => s === "completed")) return "completed";
+  if (statuses.every(s => s === "missed")) return "missed";
+  const hasFuture = statuses.some(s => s === "scheduled");
+  if (hasFuture && !statuses.some(s => s === "completed")) return "scheduled";
+  return "today_pending";
+}
 
 function monthStr(y: number, m: number) {
   return `${y}-${String(m).padStart(2, "0")}`;
@@ -64,29 +78,23 @@ function buildGrid(ym: string): string[] {
   const [y, m] = ym.split("-").map(Number);
   const first = new Date(y, m - 1, 1);
   const last = new Date(y, m, 0);
-  // Monday-first: getDay() 0=Sun → 6, 1=Mon → 0, ...
-  const startOffset = (first.getDay() + 6) % 7; // 0=Mon ... 6=Sun
+  const startOffset = (first.getDay() + 6) % 7;
   const endOffset = (7 - ((last.getDay() + 6) % 7 + 1)) % 7;
-
   const dates: string[] = [];
   for (let i = startOffset; i > 0; i--) {
-    const d = new Date(first);
-    d.setDate(first.getDate() - i);
+    const d = new Date(first); d.setDate(first.getDate() - i);
     dates.push(d.toISOString().split("T")[0]);
   }
   for (let d = 1; d <= last.getDate(); d++) {
     dates.push(`${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
   }
   for (let i = 1; i <= endOffset; i++) {
-    const d = new Date(last);
-    d.setDate(last.getDate() + i);
+    const d = new Date(last); d.setDate(last.getDate() + i);
     dates.push(d.toISOString().split("T")[0]);
   }
-  // ensure 6 rows × 7 = 42 cells
   while (dates.length < 42) {
     const last2 = dates[dates.length - 1];
-    const d = new Date(last2 + "T12:00:00Z");
-    d.setUTCDate(d.getUTCDate() + 1);
+    const d = new Date(last2 + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + 1);
     dates.push(d.toISOString().split("T")[0]);
   }
   return dates.slice(0, 42);
@@ -97,18 +105,110 @@ function formatDateFull(dateStr: string) {
   return `${FULL_DAYS[d.getDay()]} ${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
 }
 
-function abbreviate(name: string, maxLen = 9) {
-  const parts = name.trim().split(" ");
-  if (parts[0].length <= maxLen) return parts[0];
-  return parts[0].slice(0, maxLen - 1) + "…";
+function formatTime(isoStr: string | null): string | null {
+  if (!isoStr) return null;
+  const d = new Date(isoStr);
+  return d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
 }
+
+// ── Three-dot menu ─────────────────────────────────────────────────────────────
+
+interface MenuProps {
+  session: CalendarSession;
+  date: string;
+  onOpenManual: (studentId: string, studentName: string, date: string) => void;
+  onClose: () => void;
+}
+
+function SessionMenu({ session, date, onOpenManual, onClose }: MenuProps) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [onClose]);
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        position: "absolute", right: 0, top: "100%", zIndex: 50,
+        background: "var(--surface-elevated, #fff)",
+        border: "1px solid var(--surface-elevated-border, rgba(0,0,0,0.08))",
+        borderRadius: 14, boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+        minWidth: 200, overflow: "hidden",
+      }}
+    >
+      {[
+        {
+          label: "Ver rutina",
+          icon: (
+            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+          ),
+          href: `/dashboard/students/${session.student_id}?tab=rutina`,
+        },
+        {
+          label: "Escribir mensaje",
+          icon: (
+            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+            </svg>
+          ),
+          href: `/dashboard/chat/${session.student_id}`,
+        },
+      ].map(item => (
+        <Link
+          key={item.label}
+          href={item.href}
+          onClick={onClose}
+          style={{
+            display: "flex", alignItems: "center", gap: 10,
+            padding: "11px 16px", fontSize: 14, fontWeight: 600,
+            color: "var(--text-primary, #111827)", textDecoration: "none",
+            transition: "background 0.1s",
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = "var(--surface-input, #f9fafb)")}
+          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+        >
+          {item.icon}
+          {item.label}
+        </Link>
+      ))}
+      <button
+        onClick={() => { onClose(); onOpenManual(session.student_id, session.student_name, date); }}
+        style={{
+          display: "flex", alignItems: "center", gap: 10, width: "100%",
+          padding: "11px 16px", fontSize: 14, fontWeight: 600,
+          color: "#534AB7", background: "transparent", border: "none",
+          cursor: "pointer", textAlign: "left",
+          transition: "background 0.1s",
+        }}
+        onMouseEnter={e => (e.currentTarget.style.background = "rgba(83,74,183,0.06)")}
+        onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+      >
+        <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+        Cargar sesión manual
+      </button>
+    </div>
+  );
+}
+
+// ── Main component ─────────────────────────────────────────────────────────────
 
 export function TrainerCalendar({ sessions, currentMonth, today, initialView = "calendar" }: Props) {
   const router = useRouter();
   const [view, setView] = useState<"calendar" | "list">(initialView);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [manualTarget, setManualTarget] = useState<{ studentId: string; studentName: string; date: string } | null>(null);
 
-  // Group sessions by date
   const byDate = new Map<string, CalendarSession[]>();
   for (const s of sessions) {
     const arr = byDate.get(s.scheduled_date) ?? [];
@@ -128,15 +228,18 @@ export function TrainerCalendar({ sessions, currentMonth, today, initialView = "
     const hasSessions = (byDate.get(date)?.length ?? 0) > 0;
     if (!hasSessions) return;
     setSelectedDate(prev => prev === date ? null : date);
+    setOpenMenuId(null);
   }, [byDate]);
 
   const selectedSessions = selectedDate ? (byDate.get(selectedDate) ?? []) : [];
 
-  // ── Calendar grid ─────────────────────────────────────────────────────────
+  function openManual(studentId: string, studentName: string, date: string) {
+    setManualTarget({ studentId, studentName, date });
+  }
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Header: month nav + view toggle */}
+      {/* ── Header: month nav + view toggle ─────────────────────────────── */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-1.5">
           <button
@@ -168,32 +271,28 @@ export function TrainerCalendar({ sessions, currentMonth, today, initialView = "
           )}
         </div>
 
-        {/* View toggle */}
         <div className="flex items-center bg-gray-100 rounded-xl p-1 gap-0.5 flex-shrink-0">
-          <button
-            onClick={() => setView("calendar")}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
-              view === "calendar" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
-            )}
-          >
-            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5m-9-6h.008v.008H12V12zm0 3h.008v.008H12v-.008zm0 3h.008v.008H12v-.008zm-3-6h.008v.008H9V12zm0 3h.008v.008H9v-.008zm0 3h.008v.008H9v-.008zm6-6h.008v.008h-.008V12zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" />
-            </svg>
-            Calendario
-          </button>
-          <button
-            onClick={() => setView("list")}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
-              view === "list" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
-            )}
-          >
-            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-            </svg>
-            Lista
-          </button>
+          {(["calendar", "list"] as const).map(v => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
+                view === v ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+              )}
+            >
+              {v === "calendar" ? (
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5" />
+                </svg>
+              ) : (
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                </svg>
+              )}
+              {v === "calendar" ? "Calendario" : "Lista"}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -218,17 +317,20 @@ export function TrainerCalendar({ sessions, currentMonth, today, initialView = "
               const daySessions = byDate.get(date) ?? [];
               const dayNum = parseInt(date.split("-")[2]);
               const hasSessions = daySessions.length > 0;
+              const aggStatus = getDayAggStatus(daySessions, today);
+              const aggStyle = aggStatus ? STATUS_STYLE[aggStatus] : null;
 
               return (
                 <div
                   key={date}
                   onClick={() => handleDayClick(date)}
                   className={cn(
-                    "bg-white min-h-[72px] sm:min-h-[88px] p-1.5 flex flex-col gap-1 transition-colors",
+                    "bg-white min-h-[68px] sm:min-h-[80px] p-1.5 flex flex-col gap-1 transition-colors",
                     hasSessions ? "cursor-pointer hover:bg-gray-50 active:bg-gray-100" : "cursor-default",
                     !isCurrentMonth && "bg-gray-50/60",
-                    isSelected && "ring-2 ring-inset ring-brand-400 bg-brand-50/30"
+                    isSelected && "ring-2 ring-inset ring-brand-400"
                   )}
+                  style={isSelected && aggStyle ? { backgroundColor: aggStyle.bg + "60" } : undefined}
                 >
                   {/* Day number */}
                   <div className="flex justify-end">
@@ -240,46 +342,39 @@ export function TrainerCalendar({ sessions, currentMonth, today, initialView = "
                     </span>
                   </div>
 
-                  {/* Desktop chips */}
-                  <div className="hidden sm:flex flex-col gap-0.5 flex-1">
-                    {daySessions.slice(0, 2).map(s => {
-                      const st = getStatus(s, today);
-                      const style = STATUS_STYLE[st];
-                      return (
+                  {/* Aggregate status chip */}
+                  {aggStyle && (
+                    <>
+                      {/* Desktop: chip with count */}
+                      <div className="hidden sm:flex flex-col gap-0.5 flex-1">
                         <span
-                          key={s.id}
-                          className="text-[10px] font-bold px-1.5 py-0.5 rounded-md truncate leading-snug"
-                          style={{ backgroundColor: style.bg, color: style.text }}
-                          title={s.student_name}
+                          className="text-[10px] font-bold px-1.5 py-0.5 rounded-md leading-snug text-center"
+                          style={{ backgroundColor: aggStyle.bg, color: aggStyle.text }}
                         >
-                          {abbreviate(s.student_name)}
+                          {daySessions.length} {daySessions.length === 1 ? "alumno" : "alumnos"}
                         </span>
-                      );
-                    })}
-                    {daySessions.length > 2 && (
-                      <span className="text-[10px] font-semibold text-gray-400 pl-1">
-                        +{daySessions.length - 2} más
-                      </span>
-                    )}
-                  </div>
+                        {/* Completed indicator */}
+                        {aggStatus === "completed" && (
+                          <span className="text-[9px] text-center font-semibold" style={{ color: aggStyle.text }}>
+                            ✓ Todos
+                          </span>
+                        )}
+                        {aggStatus === "today_pending" && daySessions.some(s => getStatus(s, today) === "completed") && (
+                          <span className="text-[9px] text-center font-semibold" style={{ color: aggStyle.text }}>
+                            {daySessions.filter(s => getStatus(s, today) === "completed").length}/{daySessions.length}
+                          </span>
+                        )}
+                      </div>
 
-                  {/* Mobile dots */}
-                  <div className="sm:hidden flex flex-wrap gap-0.5 justify-center mt-0.5">
-                    {daySessions.slice(0, 5).map(s => {
-                      const st = getStatus(s, today);
-                      const style = STATUS_STYLE[st];
-                      return (
+                      {/* Mobile: single dot */}
+                      <div className="sm:hidden flex justify-center mt-0.5">
                         <span
-                          key={s.id}
-                          className="h-1.5 w-1.5 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: style.dot }}
+                          className="h-2 w-2 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: aggStyle.dot }}
                         />
-                      );
-                    })}
-                    {daySessions.length > 5 && (
-                      <span className="h-1.5 w-1.5 rounded-full bg-gray-300" />
-                    )}
-                  </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               );
             })}
@@ -295,101 +390,95 @@ export function TrainerCalendar({ sessions, currentMonth, today, initialView = "
             ))}
           </div>
 
-          {/* ── Detail panel (desktop: inline, mobile: bottom sheet) ──── */}
-          {selectedDate && (
-            <>
-              {/* Mobile bottom sheet backdrop */}
-              <div
-                className="fixed inset-0 z-30 bg-black/30 sm:hidden"
-                onClick={() => setSelectedDate(null)}
-              />
-
-              {/* Panel */}
-              <div className={cn(
-                "bg-white rounded-2xl border border-gray-200 shadow-lg",
-                // Mobile: fixed bottom sheet
-                "fixed inset-x-0 bottom-0 z-40 rounded-b-none sm:rounded-2xl",
-                // Desktop: relative inline
-                "sm:relative sm:inset-auto sm:z-auto sm:shadow-none sm:border-brand-200 sm:bg-brand-50/20"
-              )}>
-                {/* Panel header */}
-                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-                  <div>
-                    <p className="text-sm font-black text-gray-900">{formatDateFull(selectedDate)}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {selectedSessions.length} alumno{selectedSessions.length !== 1 ? "s" : ""}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setSelectedDate(null)}
-                    className="h-8 w-8 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-                  >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
+          {/* ── Expanded detail panel (always inline below calendar) ─── */}
+          {selectedDate && selectedSessions.length > 0 && (
+            <div className="bg-white dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-white/10 shadow-sm overflow-hidden">
+              {/* Panel header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-white/10">
+                <div>
+                  <p className="text-sm font-black text-gray-900 dark:text-white">{formatDateFull(selectedDate)}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {selectedSessions.length} alumno{selectedSessions.length !== 1 ? "s" : ""}
+                  </p>
                 </div>
-
-                {/* Session list */}
-                <div className="flex flex-col divide-y divide-gray-50 max-h-72 overflow-y-auto">
-                  {selectedSessions.map(s => {
-                    const st = getStatus(s, today);
-                    const style = STATUS_STYLE[st];
-                    return (
-                      <div key={s.id} className="flex items-center gap-3 px-4 py-3">
-                        {/* Avatar */}
-                        <div className="h-9 w-9 rounded-full bg-brand-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                          {s.student_avatar ? (
-                            <img src={s.student_avatar} alt={s.student_name} className="h-full w-full object-cover" />
-                          ) : (
-                            <span className="text-brand-600 font-bold text-sm">
-                              {s.student_name.charAt(0).toUpperCase()}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Info */}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-gray-900 truncate">{s.student_name}</p>
-                          {s.routine_day_name && (
-                            <p className="text-xs text-gray-400 truncate">{s.routine_day_name}</p>
-                          )}
-                        </div>
-
-                        {/* Status badge */}
-                        <span
-                          className="text-[11px] font-bold px-2.5 py-1 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: style.bg, color: style.text }}
-                        >
-                          {style.label}
-                        </span>
-
-                        {/* Actions */}
-                        <div className="flex gap-1 flex-shrink-0">
-                          {st === "completed" && (
-                            <Link
-                              href={`/dashboard/chat?student=${s.student_id}`}
-                              className="h-8 px-2.5 flex items-center text-xs font-semibold text-brand-600 hover:bg-brand-50 rounded-lg transition-colors gap-1"
-                            >
-                              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
-                              </svg>
-                              Escribir
-                            </Link>
-                          )}
-                          <Link
-                            href={`/dashboard/students/${s.student_id}`}
-                            className="h-8 px-2.5 flex items-center text-xs font-semibold text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
-                          >
-                            Ver
-                          </Link>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                <button
+                  onClick={() => setSelectedDate(null)}
+                  className="h-8 w-8 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
-            </>
+
+              {/* Student list */}
+              <div className="flex flex-col divide-y divide-gray-50 dark:divide-white/5">
+                {selectedSessions.map(s => {
+                  const st = getStatus(s, today);
+                  const style = STATUS_STYLE[st];
+                  const time = formatTime(s.completed_at);
+                  const isMenuOpen = openMenuId === s.id;
+
+                  return (
+                    <div key={s.id} className="flex items-center gap-3 px-4 py-3">
+                      {/* Avatar */}
+                      <div className="h-10 w-10 rounded-full bg-brand-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {s.student_avatar ? (
+                          <img src={s.student_avatar} alt={s.student_name} className="h-full w-full object-cover" />
+                        ) : (
+                          <span className="text-brand-600 font-bold text-sm">
+                            {s.student_name.charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{s.student_name}</p>
+                        <p className="text-xs text-gray-400 truncate">
+                          {s.routine_day_name ?? s.session_name ?? "Sin rutina"}
+                          {st === "completed" && time && (
+                            <span className="ml-1.5 text-green-600 font-semibold">· {time} ✓</span>
+                          )}
+                          {s.logged_by_trainer && (
+                            <span className="ml-1.5 text-brand-500 font-semibold">· Cargado por vos</span>
+                          )}
+                        </p>
+                      </div>
+
+                      {/* Status badge */}
+                      <span
+                        className="text-[11px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 hidden sm:inline-flex"
+                        style={{ backgroundColor: style.bg, color: style.text }}
+                      >
+                        {style.label}
+                      </span>
+
+                      {/* Three-dot menu */}
+                      <div className="relative flex-shrink-0">
+                        <button
+                          onClick={() => setOpenMenuId(prev => prev === s.id ? null : s.id)}
+                          className="h-8 w-8 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                          title="Opciones"
+                        >
+                          <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z" />
+                          </svg>
+                        </button>
+                        {isMenuOpen && (
+                          <SessionMenu
+                            session={s}
+                            date={selectedDate!}
+                            onOpenManual={openManual}
+                            onClose={() => setOpenMenuId(null)}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           )}
         </>
       )}
@@ -398,7 +487,6 @@ export function TrainerCalendar({ sessions, currentMonth, today, initialView = "
       {view === "list" && (
         <div className="flex flex-col gap-4">
           {(() => {
-            // Show sessions for current month, sorted by date
             const sorted = [...sessions].sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date));
             const grouped: Record<string, CalendarSession[]> = {};
             for (const s of sorted) {
@@ -437,13 +525,14 @@ export function TrainerCalendar({ sessions, currentMonth, today, initialView = "
                     {daySessions.map(s => {
                       const st = getStatus(s, today);
                       const style = STATUS_STYLE[st];
+                      const time = formatTime(s.completed_at);
+                      const isMenuOpen = openMenuId === s.id;
                       return (
-                        <Link
+                        <div
                           key={s.id}
-                          href={`/dashboard/students/${s.student_id}`}
                           className={cn(
-                            "flex items-center gap-3 rounded-2xl border bg-white px-3.5 py-2.5 hover:bg-gray-50 transition-colors",
-                            st === "completed" ? "border-green-100" : "border-gray-200"
+                            "flex items-center gap-3 rounded-2xl border bg-white dark:bg-white/5 px-3.5 py-2.5",
+                            st === "completed" ? "border-green-100 dark:border-green-500/20" : "border-gray-200 dark:border-white/10"
                           )}
                         >
                           <div className="h-8 w-8 rounded-full bg-brand-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
@@ -456,10 +545,11 @@ export function TrainerCalendar({ sessions, currentMonth, today, initialView = "
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-gray-900 truncate">{s.student_name}</p>
-                            {s.routine_day_name && (
-                              <p className="text-xs text-gray-400 truncate">{s.routine_day_name}</p>
-                            )}
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{s.student_name}</p>
+                            <p className="text-xs text-gray-400 truncate">
+                              {s.routine_day_name ?? s.session_name ?? "—"}
+                              {st === "completed" && time && <span className="ml-1 text-green-600 font-semibold">· {time}</span>}
+                            </p>
                           </div>
                           <span
                             className="text-[11px] font-bold px-2.5 py-1 rounded-full flex-shrink-0"
@@ -467,7 +557,26 @@ export function TrainerCalendar({ sessions, currentMonth, today, initialView = "
                           >
                             {style.label}
                           </span>
-                        </Link>
+                          {/* Three-dot menu */}
+                          <div className="relative flex-shrink-0">
+                            <button
+                              onClick={() => setOpenMenuId(prev => prev === s.id ? null : s.id)}
+                              className="h-8 w-8 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                            >
+                              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z" />
+                              </svg>
+                            </button>
+                            {isMenuOpen && (
+                              <SessionMenu
+                                session={s}
+                                date={date}
+                                onOpenManual={openManual}
+                                onClose={() => setOpenMenuId(null)}
+                              />
+                            )}
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
@@ -476,6 +585,16 @@ export function TrainerCalendar({ sessions, currentMonth, today, initialView = "
             });
           })()}
         </div>
+      )}
+
+      {/* ── Manual session modal ──────────────────────────────────────── */}
+      {manualTarget && (
+        <TrainerManualSessionModal
+          studentId={manualTarget.studentId}
+          studentName={manualTarget.studentName}
+          defaultDate={manualTarget.date}
+          onClose={() => setManualTarget(null)}
+        />
       )}
     </div>
   );

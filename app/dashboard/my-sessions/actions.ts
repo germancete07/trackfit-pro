@@ -19,7 +19,7 @@ export async function finishSessionAction(sessionId: string) {
   // Update with ownership filter re-asserted on the UPDATE itself (prevents TOCTOU)
   const { error: updateErr } = await supabase
     .from("sessions")
-    .update({ status: "completed" })
+    .update({ status: "completed", completed_at: new Date().toISOString() })
     .eq("id", sessionId)
     .eq("student_id", user.id);
 

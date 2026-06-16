@@ -55,7 +55,7 @@ export default async function CalendarPage({
         .order("full_name"),
       supabase
         .from("sessions")
-        .select("id, scheduled_date, status, student_id, routine_day_name")
+        .select("id, scheduled_date, status, student_id, name, routine_day_name, completed_at, logged_by_trainer")
         .eq("trainer_id", user.id)
         .gte("scheduled_date", rangeStart)
         .lte("scheduled_date", rangeEnd)
@@ -74,9 +74,12 @@ export default async function CalendarPage({
         scheduled_date: s.scheduled_date,
         status: s.status as "pending" | "active" | "completed",
         student_id: s.student_id,
+        session_name: (s as any).name ?? null,
         routine_day_name: s.routine_day_name ?? null,
         student_name: st?.full_name ?? "Alumno",
         student_avatar: st?.avatar_url ?? null,
+        completed_at: (s as any).completed_at ?? null,
+        logged_by_trainer: (s as any).logged_by_trainer ?? false,
       };
     });
 

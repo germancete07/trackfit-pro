@@ -38,6 +38,7 @@ const trainerDesktopLinks: NavLink[] = [
   { href: "/dashboard/calendar", label: "Agenda", icon: CalendarGridIcon },
   { href: "/dashboard/library", label: "Biblioteca", icon: LibraryIcon },
   { href: "/dashboard/corrections", label: "Correcciones", icon: VideoIcon },
+  { href: "/dashboard/stats", label: "Estadísticas", icon: ChartIcon },
   { href: "/dashboard/chat", label: "Chat", icon: ChatIcon, isChatBadge: true },
 ];
 

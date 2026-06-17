@@ -15,7 +15,7 @@ export default async function RoutinesPage({
   if (!user) redirect("/login");
 
   const { data: profile } = await supabase
-    .from("profiles").select("role").eq("id", user.id).single();
+    .from("profiles").select("role, full_name").eq("id", user.id).single();
   if (profile?.role !== "trainer") redirect("/dashboard");
 
   const activeTab = searchParams.tab === "biblioteca" ? "biblioteca" : "rutinas";
@@ -99,6 +99,7 @@ export default async function RoutinesPage({
         newRoutineHref="/dashboard/templates/new"
         preselectedStudentId={searchParams.assignTo}
         activeCounts={activeCounts}
+        trainerName={profile?.full_name ?? ""}
       />
     </div>
   );

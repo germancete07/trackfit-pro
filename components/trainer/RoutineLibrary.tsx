@@ -9,6 +9,7 @@ import { deleteTemplateAction, duplicateTemplateAction } from "@/app/dashboard/t
 import { deleteCategoryAction, renameCategoryAction, createCategoryAction, moveRoutineToCategoryAction } from "@/app/dashboard/routines/actions";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { QuickAssignModal } from "@/components/trainer/QuickAssignModal";
+import { RoutineExportModal } from "@/components/trainer/RoutineExportModal";
 import type { SessionTemplate, TemplateExercise, RoutineCategory, RoutineDay } from "@/lib/types";
 
 type RoutineFull = SessionTemplate & {
@@ -39,9 +40,10 @@ interface Props {
   newRoutineHref: string;
   preselectedStudentId?: string;
   activeCounts?: Record<string, number>;
+  trainerName?: string;
 }
 
-export function RoutineLibrary({ routines, categories, students, categoryId, newRoutineHref, preselectedStudentId, activeCounts = {} }: Props) {
+export function RoutineLibrary({ routines, categories, students, categoryId, newRoutineHref, preselectedStudentId, activeCounts = {}, trainerName = "" }: Props) {
   const { showToast } = useToast();
   const [localRoutines, setLocalRoutines] = useState(routines);
   const [localCategories, setLocalCategories] = useState(categories);
@@ -57,6 +59,7 @@ export function RoutineLibrary({ routines, categories, students, categoryId, new
 
   const [moveTarget, setMoveTarget] = useState<string | null>(null);
   const [assignModal, setAssignModal] = useState<{ templateId: string; templateName: string } | null>(null);
+  const [exportRoutine, setExportRoutine] = useState<RoutineFull | null>(null);
 
   const displayRoutines = categoryId
     ? localRoutines.filter((r) => r.category_id === categoryId)
@@ -134,6 +137,13 @@ export function RoutineLibrary({ routines, categories, students, categoryId, new
           onClose={() => setAssignModal(null)}
           initialStudentId={preselectedStudentId}
           lockStudent={!!preselectedStudentId}
+        />
+      )}
+      {exportRoutine && (
+        <RoutineExportModal
+          routine={exportRoutine}
+          trainerName={trainerName}
+          onClose={() => setExportRoutine(null)}
         />
       )}
 
@@ -285,6 +295,7 @@ export function RoutineLibrary({ routines, categories, students, categoryId, new
               onMove={(catId) => handleMove(r.id, catId)}
               onToggleMove={() => setMoveTarget(moveTarget === r.id ? null : r.id)}
               onRename={() => { setRenameId(null); }}
+              onExport={() => setExportRoutine(r)}
             />)
           )}
         </section>
@@ -309,9 +320,10 @@ interface CardProps {
   onMove: (catId: string | null) => void;
   onToggleMove: () => void;
   onRename: () => void;
+  onExport: () => void;
 }
 
-function RoutineCard({ routine: r, categories, categoryId, moveTarget, loading, students, activeCount, onAssign, onDuplicate, onDelete, onMove, onToggleMove }: CardProps) {
+function RoutineCard({ routine: r, categories, categoryId, moveTarget, loading, students, activeCount, onAssign, onDuplicate, onDelete, onMove, onToggleMove, onExport }: CardProps) {
   const typeInfo = r.training_type ? TRAINING_TYPE_LABELS[r.training_type] : null;
 
   // Build days list from routine_days (or fall back to a synthetic Día 1 from template_exercises)
@@ -470,6 +482,15 @@ function RoutineCard({ routine: r, categories, categoryId, moveTarget, loading, 
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+          </svg>
+        </Button>
+        <Button
+          variant="secondary" size="sm"
+          onClick={onExport}
+          title="Exportar rutina"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
           </svg>
         </Button>
         <Button

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { TrainerOnboardingModal } from "@/components/trainer/TrainerOnboardingModal";
 import type { Profile } from "@/lib/types";
 
 interface StudentWithStatus {
@@ -26,6 +27,7 @@ interface Props {
   students: StudentWithStatus[];
   stats: TrainerStats;
   activeStudents: number;
+  showOnboarding?: boolean;
 }
 
 const STATUS_DOT: Record<StudentWithStatus["status"], string> = {
@@ -50,7 +52,7 @@ function statusSubline(s: StudentWithStatus): { text: string; className: string 
   return { text: "Sin rutina hoy", className: "text-gray-400" };
 }
 
-export function TrainerDashboard({ profile, students, stats, activeStudents }: Props) {
+export function TrainerDashboard({ profile, students, stats, activeStudents, showOnboarding }: Props) {
   const firstName = profile.full_name?.split(" ")[0] || "Entrenador";
   const trainedCount = students.filter(s => s.trainedToday).length;
   const totalStudents = students.length;
@@ -62,6 +64,13 @@ export function TrainerDashboard({ profile, students, stats, activeStudents }: P
   const showTrialBanner = trialDaysLeft !== null && trialDaysLeft <= 7 && trialDaysLeft > 0;
 
   return (
+    <>
+      {showOnboarding && (
+        <TrainerOnboardingModal
+          userId={profile.id}
+          initialSpaceName={profile.space_name}
+        />
+      )}
     <div className="px-4 py-5 flex flex-col gap-5">
       {/* Urgent trial banner — only ≤7 days remaining */}
       {showTrialBanner && (
@@ -102,6 +111,24 @@ export function TrainerDashboard({ profile, students, stats, activeStudents }: P
           </div>
         ))}
       </div>
+
+      {/* Stats shortcut */}
+      <Link href="/dashboard/stats" className="flex items-center justify-between rounded-2xl px-4 py-3 bg-brand-50 border border-brand-100 hover:bg-brand-100 transition-colors">
+        <div className="flex items-center gap-2.5">
+          <div className="h-8 w-8 rounded-xl bg-brand-500 flex items-center justify-center flex-shrink-0">
+            <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-sm font-black text-brand-800">Ver estadísticas</p>
+            <p className="text-xs text-brand-500">Actividad, alumnos y más</p>
+          </div>
+        </div>
+        <svg className="h-4 w-4 text-brand-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+        </svg>
+      </Link>
 
       {/* Quick actions */}
       <div className="grid grid-cols-2 gap-3">
@@ -195,6 +222,7 @@ export function TrainerDashboard({ profile, students, stats, activeStudents }: P
         </Card>
       )}
     </div>
+    </>
   );
 }
 

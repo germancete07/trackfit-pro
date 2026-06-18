@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -111,89 +111,62 @@ function formatTime(isoStr: string | null): string | null {
   return d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
 }
 
-// ── Three-dot menu ─────────────────────────────────────────────────────────────
+// ── Three-dot menu ────────────────────────────────────────────────────────────
 
 interface MenuProps {
   session: CalendarSession;
   date: string;
+  top: number;
+  left: number;
   onOpenManual: (studentId: string, studentName: string, date: string) => void;
   onClose: () => void;
 }
 
-function SessionMenu({ session, date, onOpenManual, onClose }: MenuProps) {
-  const ref = useRef<HTMLDivElement>(null);
-
+function SessionMenu({ session, date, top, left, onOpenManual, onClose }: MenuProps) {
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    const handleClick = () => onClose();
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
   }, [onClose]);
 
   return (
     <div
-      ref={ref}
+      onClick={e => e.stopPropagation()}
       style={{
-        position: "absolute", right: 0, top: "100%", zIndex: 50,
-        background: "var(--surface-elevated, #fff)",
-        border: "1px solid var(--surface-elevated-border, rgba(0,0,0,0.08))",
-        borderRadius: 14, boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-        minWidth: 200, overflow: "hidden",
+        position: "fixed",
+        top,
+        left,
+        zIndex: 9999,
+        width: 200,
+        background: "white",
+        borderRadius: 12,
+        border: "0.5px solid #e5e7eb",
+        boxShadow: "0 4px 24px rgba(0,0,0,0.14)",
+        padding: "4px 0",
       }}
     >
-      {[
-        {
-          label: "Ver rutina",
-          icon: (
-            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-          ),
-          href: `/dashboard/students/${session.student_id}?tab=rutina`,
-        },
-        {
-          label: "Escribir mensaje",
-          icon: (
-            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
-            </svg>
-          ),
-          href: `/dashboard/chat/${session.student_id}`,
-        },
-      ].map(item => (
-        <Link
-          key={item.label}
-          href={item.href}
-          onClick={onClose}
-          style={{
-            display: "flex", alignItems: "center", gap: 10,
-            padding: "11px 16px", fontSize: 14, fontWeight: 600,
-            color: "var(--text-primary, #111827)", textDecoration: "none",
-            transition: "background 0.1s",
-          }}
-          onMouseEnter={e => (e.currentTarget.style.background = "var(--surface-input, #f9fafb)")}
-          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-        >
-          {item.icon}
-          {item.label}
-        </Link>
-      ))}
+      <Link
+        href={`/dashboard/students/${session.student_id}?tab=rutina`}
+        onClick={onClose}
+        className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+      >
+        <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="text-gray-400 flex-shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+        Ver rutina
+      </Link>
+      <Link
+        href={`/dashboard/chat?student=${session.student_id}`}
+        onClick={onClose}
+        className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+      >
+        <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="text-gray-400 flex-shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" /></svg>
+        Escribir mensaje
+      </Link>
       <button
         onClick={() => { onClose(); onOpenManual(session.student_id, session.student_name, date); }}
-        style={{
-          display: "flex", alignItems: "center", gap: 10, width: "100%",
-          padding: "11px 16px", fontSize: 14, fontWeight: 600,
-          color: "#534AB7", background: "transparent", border: "none",
-          cursor: "pointer", textAlign: "left",
-          transition: "background 0.1s",
-        }}
-        onMouseEnter={e => (e.currentTarget.style.background = "rgba(83,74,183,0.06)")}
-        onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+        className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium w-full text-left transition-colors hover:bg-purple-50"
+        style={{ color: "#534AB7", background: "transparent", border: "none", cursor: "pointer" }}
       >
-        <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-        </svg>
+        <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="flex-shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
         Cargar sesión manual
       </button>
     </div>
@@ -207,6 +180,7 @@ export function TrainerCalendar({ sessions, currentMonth, today, initialView = "
   const [view, setView] = useState<"calendar" | "list">(initialView);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const [manualTarget, setManualTarget] = useState<{ studentId: string; studentName: string; date: string } | null>(null);
 
   const byDate = new Map<string, CalendarSession[]>();
@@ -455,25 +429,28 @@ export function TrainerCalendar({ sessions, currentMonth, today, initialView = "
                       </span>
 
                       {/* Three-dot menu */}
-                      <div className="relative flex-shrink-0">
-                        <button
-                          onClick={() => setOpenMenuId(prev => prev === s.id ? null : s.id)}
-                          className="h-8 w-8 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-                          title="Opciones"
-                        >
-                          <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z" />
-                          </svg>
-                        </button>
-                        {isMenuOpen && (
-                          <SessionMenu
-                            session={s}
-                            date={selectedDate!}
-                            onOpenManual={openManual}
-                            onClose={() => setOpenMenuId(null)}
-                          />
-                        )}
-                      </div>
+                      <button
+                        onClick={e => {
+                          e.stopPropagation();
+                          if (openMenuId === s.id) { setOpenMenuId(null); return; }
+                          const r = e.currentTarget.getBoundingClientRect();
+                          const mw = 200; const mh = 130;
+                          setMenuPos({
+                            top: window.innerHeight - r.bottom < mh + 8 ? r.top - mh - 4 : r.bottom + 4,
+                            left: Math.min(r.right - mw, window.innerWidth - mw - 8),
+                          });
+                          setOpenMenuId(s.id);
+                        }}
+                        className="h-8 w-8 flex-shrink-0 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                        title="Opciones"
+                      >
+                        <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z" />
+                        </svg>
+                      </button>
+                      {isMenuOpen && (
+                        <SessionMenu session={s} date={selectedDate!} top={menuPos.top} left={menuPos.left} onOpenManual={openManual} onClose={() => setOpenMenuId(null)} />
+                      )}
                     </div>
                   );
                 })}
@@ -558,24 +535,27 @@ export function TrainerCalendar({ sessions, currentMonth, today, initialView = "
                             {style.label}
                           </span>
                           {/* Three-dot menu */}
-                          <div className="relative flex-shrink-0">
-                            <button
-                              onClick={() => setOpenMenuId(prev => prev === s.id ? null : s.id)}
-                              className="h-8 w-8 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-                            >
-                              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z" />
-                              </svg>
-                            </button>
-                            {isMenuOpen && (
-                              <SessionMenu
-                                session={s}
-                                date={date}
-                                onOpenManual={openManual}
-                                onClose={() => setOpenMenuId(null)}
-                              />
-                            )}
-                          </div>
+                          <button
+                            onClick={e => {
+                              e.stopPropagation();
+                              if (openMenuId === s.id) { setOpenMenuId(null); return; }
+                              const r = e.currentTarget.getBoundingClientRect();
+                              const mw = 200; const mh = 130;
+                              setMenuPos({
+                                top: window.innerHeight - r.bottom < mh + 8 ? r.top - mh - 4 : r.bottom + 4,
+                                left: Math.min(r.right - mw, window.innerWidth - mw - 8),
+                              });
+                              setOpenMenuId(s.id);
+                            }}
+                            className="h-8 w-8 flex-shrink-0 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                          >
+                            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M10 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z" />
+                            </svg>
+                          </button>
+                          {isMenuOpen && (
+                            <SessionMenu session={s} date={date} top={menuPos.top} left={menuPos.left} onOpenManual={openManual} onClose={() => setOpenMenuId(null)} />
+                          )}
                         </div>
                       );
                     })}

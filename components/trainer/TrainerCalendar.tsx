@@ -123,53 +123,46 @@ interface MenuProps {
 }
 
 function SessionMenu({ session, date, top, left, onOpenManual, onClose }: MenuProps) {
-  useEffect(() => {
-    const handleClick = () => onClose();
-    document.addEventListener("click", handleClick);
-    return () => document.removeEventListener("click", handleClick);
-  }, [onClose]);
-
   return (
-    <div
-      onClick={e => e.stopPropagation()}
-      style={{
+    <>
+      <div
+        onClick={onClose}
+        style={{ position: "fixed", inset: 0, zIndex: 9998 }}
+      />
+      <div style={{
         position: "fixed",
         top,
         left,
         zIndex: 9999,
-        width: 200,
         background: "white",
-        borderRadius: 12,
-        border: "0.5px solid #e5e7eb",
-        boxShadow: "0 4px 24px rgba(0,0,0,0.14)",
-        padding: "4px 0",
-      }}
-    >
-      <Link
-        href={`/dashboard/students/${session.student_id}?tab=rutina`}
-        onClick={onClose}
-        className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-      >
-        <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="text-gray-400 flex-shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
-        Ver rutina
-      </Link>
-      <Link
-        href={`/dashboard/chat?student=${session.student_id}`}
-        onClick={onClose}
-        className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-      >
-        <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="text-gray-400 flex-shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" /></svg>
-        Escribir mensaje
-      </Link>
-      <button
-        onClick={() => { onClose(); onOpenManual(session.student_id, session.student_name, date); }}
-        className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium w-full text-left transition-colors hover:bg-purple-50"
-        style={{ color: "#534AB7", background: "transparent", border: "none", cursor: "pointer" }}
-      >
-        <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="flex-shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-        Cargar sesión manual
-      </button>
-    </div>
+        borderRadius: "10px",
+        border: "1px solid #e5e7eb",
+        boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
+        minWidth: "180px",
+        overflow: "hidden",
+      }}>
+        <Link
+          href={`/dashboard/students/${session.student_id}?tab=rutina`}
+          onClick={onClose}
+          style={{ display: "block", padding: "10px 16px", fontSize: 14, color: "#374151", textDecoration: "none" }}
+        >
+          📋 Ver rutina
+        </Link>
+        <Link
+          href={`/dashboard/chat?student=${session.student_id}`}
+          onClick={onClose}
+          style={{ display: "block", padding: "10px 16px", fontSize: 14, color: "#374151", textDecoration: "none" }}
+        >
+          💬 Escribir mensaje
+        </Link>
+        <div
+          onClick={() => { onClose(); onOpenManual(session.student_id, session.student_name, date); }}
+          style={{ padding: "10px 16px", cursor: "pointer", fontSize: 14, color: "#534AB7" }}
+        >
+          ➕ Cargar sesión manual
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -432,14 +425,10 @@ export function TrainerCalendar({ sessions, currentMonth, today, initialView = "
                       <button
                         onClick={e => {
                           e.stopPropagation();
-                          if (openMenuId === s.id) { setOpenMenuId(null); return; }
-                          const r = e.currentTarget.getBoundingClientRect();
-                          const mw = 200; const mh = 130;
-                          setMenuPos({
-                            top: window.innerHeight - r.bottom < mh + 8 ? r.top - mh - 4 : r.bottom + 4,
-                            left: Math.min(r.right - mw, window.innerWidth - mw - 8),
-                          });
-                          setOpenMenuId(s.id);
+                          e.preventDefault();
+                          const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                          setMenuPos({ top: r.bottom + 4, left: Math.max(8, r.right - 200) });
+                          setOpenMenuId(openMenuId === s.id ? null : s.id);
                         }}
                         className="h-8 w-8 flex-shrink-0 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                         title="Opciones"

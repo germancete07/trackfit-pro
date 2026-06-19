@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { cn } from "@/lib/utils";
-import { StudentQuickActions } from "@/components/trainer/StudentQuickActions";
+import { ActiveStudentList } from "@/components/trainer/ActiveStudentList";
 
 function todayStr() {
   return new Date().toISOString().split("T")[0];
@@ -382,39 +382,13 @@ export default async function StudentsPage({
             </div>
           )}
           {students && students.length > 0 ? (
-            <div className="flex flex-col gap-2">
-              {students.map((s) => {
+            <ActiveStudentList
+              students={students.map(s => {
                 const status = getStatus(s.id);
                 const sub = getSubline(s.id, status);
-                return (
-                  <Card key={s.id} padding="sm" className="flex items-center gap-3 hover:border-brand-200 transition-colors">
-                    <Link href={`/dashboard/students/${s.id}`} className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="h-10 w-10 rounded-full bg-brand-100 overflow-hidden flex items-center justify-center flex-shrink-0 relative">
-                        {s.avatar_url ? (
-                          <img src={s.avatar_url} alt={s.full_name} className="h-full w-full object-cover" />
-                        ) : (
-                          <span className="text-brand-600 font-bold">
-                            {s.full_name ? s.full_name.charAt(0).toUpperCase() : "?"}
-                          </span>
-                        )}
-                        <span className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white ${STATUS_DOT[status]}`} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 truncate">{s.full_name || "(Sin nombre)"}</p>
-                        <p className={`text-xs font-medium truncate ${sub.className}`}>{sub.text}</p>
-                      </div>
-                    </Link>
-                    <StudentQuickActions
-                      studentId={s.id}
-                      studentName={s.full_name || "(Sin nombre)"}
-                      hasActiveRoutine={activeRoutineSet.has(s.id)}
-                      unreadMessages={unreadMsgsMap.get(s.id) ?? 0}
-                      pendingVideos={pendingVidsMap.get(s.id) ?? 0}
-                    />
-                  </Card>
-                );
+                return { id: s.id, full_name: s.full_name || "(Sin nombre)", avatar_url: s.avatar_url, status, subText: sub.text, subClass: sub.className };
               })}
-            </div>
+            />
           ) : (
             <EmptyState
               illustration="students"

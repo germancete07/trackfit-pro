@@ -32,7 +32,7 @@ export async function finishSessionAction(sessionId: string) {
       .select("id")
       .eq("assignment_id", session.assignment_id)
       .neq("id", sessionId)
-      .neq("status", "completed");
+      .in("status", ["pending", "active"]); // exclude cancelled and already completed
 
     if (remaining && remaining.length === 0) {
       await supabase

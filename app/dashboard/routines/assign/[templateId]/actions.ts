@@ -101,7 +101,8 @@ export async function createAssignmentAction(data: {
       .from("sessions")
       .update({ status: "cancelled" })
       .eq("assignment_id", oldAssignment.id)
-      .eq("status", "pending");
+      .in("status", ["pending", "active"])
+      .gte("scheduled_date", new Date().toISOString().split("T")[0]);
     await supabase
       .from("routine_assignments")
       .update({ status: "cancelled" })
@@ -188,12 +189,13 @@ export async function cancelAssignmentAction(assignmentId: string, studentId: st
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "No autenticado" };
 
-  // Cancel pending sessions first so they disappear from the calendar
+  // Cancel all non-completed future sessions so they vanish from the calendar
   await supabase
     .from("sessions")
     .update({ status: "cancelled" })
     .eq("assignment_id", assignmentId)
-    .eq("status", "pending");
+    .in("status", ["pending", "active"])
+    .gte("scheduled_date", new Date().toISOString().split("T")[0]);
 
   await supabase
     .from("routine_assignments")
@@ -202,7 +204,9 @@ export async function cancelAssignmentAction(assignmentId: string, studentId: st
     .eq("trainer_id", user.id);
 
   revalidatePath(`/dashboard/students/${studentId}`);
+  revalidatePath(`/dashboard/students/${studentId}/rutina`);
   revalidatePath("/dashboard/calendar");
+  revalidatePath("/dashboard");
   return { success: true };
 }
 
@@ -273,20 +277,30 @@ export async function regenerateSessionsAction(
     exercises: (rawExercises ?? []).filter((ex: RawEx) => ex.routine_day_id === d.id),
   }));
 
-  const slots = buildSessionSlots(
+  const allSlots = buildSessionSlots(
     assignment.start_date,
     assignment.training_days,
     assignment.total_weeks,
     safeDeload,
     numDays
   );
-  if (slots.length === 0) return { error: "No se generaron sesiones" };
+
+  // Only insert future slots — past completed sessions would violate the unique index
+  // sessions_student_date_active_uniq (student_id, scheduled_date) WHERE status != 'cancelled'
+  const today = new Date().toISOString().split("T")[0];
+  const slots = allSlots.filter(s => s.date >= today);
+  if (slots.length === 0) {
+    revalidatePath(`/dashboard/students/${studentId}`);
+    revalidatePath("/dashboard/calendar");
+    return { success: true, generated: 0 };
+  }
 
   const sessionRows = buildSessionRows(user.id, studentId, templateName, assignmentId, slots, daysInfo);
 
+  // upsert with ignoreDuplicates as second line of defense against unique constraint violations
   const { data: inserted, error: sErr } = await supabase
     .from("sessions")
-    .insert(sessionRows)
+    .upsert(sessionRows, { ignoreDuplicates: true })
     .select("id, routine_day_number");
   if (sErr || !inserted) return { error: `Error al generar sesiones: ${sErr?.message ?? "desconocido"}` };
 
@@ -437,4 +451,71 @@ export async function updateAssignmentTrainingDaysAction(
   revalidatePath(`/dashboard/students/${studentId}`);
   revalidatePath("/dashboard/calendar");
   return { success: true, generated: futureSlots.length };
+}
+
+// ── Clean duplicate sessions for an assignment ────────────────────────────────
+// Detects sessions where the same student_id + scheduled_date has multiple
+// non-cancelled records, keeps the "best" one (completed > pending, then earliest),
+// and cancels the rest.
+
+export async function cleanDuplicateSessionsAction(
+  assignmentId: string,
+  studentId: string
+): Promise<{ success: true; cleaned: number } | { error: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "No autenticado" };
+
+  // Verify ownership
+  const { data: assignment } = await supabase
+    .from("routine_assignments")
+    .select("id")
+    .eq("id", assignmentId)
+    .eq("trainer_id", user.id)
+    .single();
+  if (!assignment) return { error: "Asignación no encontrada" };
+
+  // Fetch all non-cancelled sessions for this assignment
+  const { data: sessions, error: fetchErr } = await supabase
+    .from("sessions")
+    .select("id, status, scheduled_date")
+    .eq("assignment_id", assignmentId)
+    .neq("status", "cancelled")
+    .order("scheduled_date");
+
+  if (fetchErr) return { error: "Error al leer sesiones: " + fetchErr.message };
+
+  // Group by date
+  const byDate = new Map<string, { id: string; status: string }[]>();
+  for (const s of sessions ?? []) {
+    const key = s.scheduled_date as string;
+    if (!byDate.has(key)) byDate.set(key, []);
+    byDate.get(key)!.push({ id: s.id, status: s.status });
+  }
+
+  // For each date with duplicates, keep completed > pending, cancel the rest
+  const toCancel: string[] = [];
+  Array.from(byDate.values()).forEach(group => {
+    if (group.length <= 1) return;
+    const completed = group.find((s: { id: string; status: string }) => s.status === "completed");
+    const keep = completed ?? group[0]!;
+    group.forEach((s: { id: string; status: string }) => {
+      if (s.id !== keep.id) toCancel.push(s.id);
+    });
+  });
+
+  if (toCancel.length === 0) {
+    return { success: true, cleaned: 0 };
+  }
+
+  const { error: cancelErr } = await supabase
+    .from("sessions")
+    .update({ status: "cancelled" })
+    .in("id", toCancel);
+
+  if (cancelErr) return { error: "Error al cancelar duplicados: " + cancelErr.message };
+
+  revalidatePath(`/dashboard/students/${studentId}`);
+  revalidatePath("/dashboard/calendar");
+  return { success: true, cleaned: toCancel.length };
 }

@@ -5,7 +5,8 @@ import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/shared/ToastProvider";
-import { cancelAssignmentAction, regenerateSessionsAction } from "@/app/dashboard/routines/assign/[templateId]/actions";
+import { cancelAssignmentAction, regenerateSessionsAction, updateAssignmentTrainingDaysAction, cleanDuplicateSessionsAction } from "@/app/dashboard/routines/assign/[templateId]/actions";
+import { cn } from "@/lib/utils";
 
 interface RoutineDayInfo {
   id: string;
@@ -59,10 +60,19 @@ function getEndDate(startDate: string, totalWeeks: number) {
   return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
 }
 
+const ALL_DAYS: { value: number; label: string }[] = [
+  { value: 1, label: "Lun" }, { value: 2, label: "Mar" }, { value: 3, label: "Mié" },
+  { value: 4, label: "Jue" }, { value: 5, label: "Vie" }, { value: 6, label: "Sáb" }, { value: 0, label: "Dom" },
+];
+
 export function ActiveAssignmentCard({ assignment, progress, studentId, templateId, routineDays }: Props) {
   const { showToast } = useToast();
   const [cancelling, setCancelling] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [cleaning, setCleaning] = useState(false);
+  const [showEditDays, setShowEditDays] = useState(false);
+  const [editDays, setEditDays] = useState<number[]>([]);
+  const [savingDays, setSavingDays] = useState(false);
 
   if (!assignment) {
     return (
@@ -104,13 +114,48 @@ export function ActiveAssignmentCard({ assignment, progress, studentId, template
     else showToast("Asignación cancelada");
   }
 
+  function openEditDays() {
+    setEditDays([...(assignment?.training_days ?? [])]);
+    setShowEditDays(true);
+  }
+
+  function toggleDay(d: number) {
+    setEditDays(prev =>
+      prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]
+    );
+  }
+
+  async function handleSaveDays() {
+    if (editDays.length === 0) {
+      showToast("Seleccioná al menos un día.", "error");
+      return;
+    }
+    setSavingDays(true);
+    const r = await updateAssignmentTrainingDaysAction(assignment!.id, studentId, editDays);
+    setSavingDays(false);
+    if ("error" in r) showToast(r.error, "error");
+    else {
+      showToast(`✓ Días actualizados. ${r.generated} sesiones futuras regeneradas.`);
+      setShowEditDays(false);
+    }
+  }
+
   async function handleRegenerate() {
-    if (!confirm("¿Regenerar todas las sesiones pendientes? Esto corrige la rotación de días y la descarga.\n\nLas sesiones completadas no se tocan.")) return;
+    if (!confirm("¿Regenerar todas las sesiones pendientes? Esto corrige la rotación de días y la descarga.\n\nLas sesiones completadas NO se tocan.")) return;
     setRegenerating(true);
     const r = await regenerateSessionsAction(assignment!.id, studentId);
     setRegenerating(false);
     if ("error" in r) showToast(r.error, "error");
     else showToast(`✓ ${r.generated} sesiones regeneradas correctamente`);
+  }
+
+  async function handleCleanDuplicates() {
+    setCleaning(true);
+    const r = await cleanDuplicateSessionsAction(assignment!.id, studentId);
+    setCleaning(false);
+    if ("error" in r) showToast(r.error, "error");
+    else if (r.cleaned === 0) showToast("Sin duplicados — el calendario ya está limpio.");
+    else showToast(`✓ ${r.cleaned} sesión${r.cleaned !== 1 ? "es" : ""} duplicada${r.cleaned !== 1 ? "s" : ""} eliminada${r.cleaned !== 1 ? "s" : ""}.`);
   }
 
   return (
@@ -161,14 +206,62 @@ export function ActiveAssignmentCard({ assignment, progress, studentId, template
           )}
         </div>
 
-        {/* Training days chips */}
-        <div className="flex gap-1 flex-wrap">
-          {sortedDays.map(d => (
-            <span key={d} className="text-xs bg-brand-100 text-brand-700 font-semibold px-2 py-0.5 rounded-full">
-              {DAY_LABELS[d]}
-            </span>
-          ))}
+        {/* Training days chips + edit button */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex gap-1 flex-wrap">
+            {sortedDays.map(d => (
+              <span key={d} className="text-xs bg-brand-100 text-brand-700 font-semibold px-2 py-0.5 rounded-full">
+                {DAY_LABELS[d]}
+              </span>
+            ))}
+          </div>
+          <button
+            onClick={openEditDays}
+            className="text-xs text-brand-500 hover:text-brand-700 font-semibold hover:underline flex-shrink-0"
+          >
+            Editar días
+          </button>
         </div>
+
+        {/* Edit days modal (inline) */}
+        {showEditDays && (
+          <div className="bg-white dark:bg-[#2A2A40] border border-brand-100 dark:border-brand-500/20 rounded-2xl p-4 flex flex-col gap-3 shadow-sm">
+            <p className="text-xs font-bold text-gray-700 dark:text-white/80">Seleccioná los nuevos días de entrenamiento</p>
+            <div className="flex gap-1.5 flex-wrap">
+              {ALL_DAYS.map(({ value, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => toggleDay(value)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-full text-xs font-bold transition-all border",
+                    editDays.includes(value)
+                      ? "bg-brand-500 text-white border-brand-500"
+                      : "bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/60 border-transparent"
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 rounded-xl px-3 py-2.5 flex flex-col gap-1">
+              <p className="text-[11px] font-bold text-amber-700 dark:text-amber-400">
+                ✓ El historial y el progreso del alumno se mantienen intactos.
+              </p>
+              <p className="text-[11px] text-amber-600 dark:text-amber-400/80">
+                Solo se modifican las sesiones futuras con estado pendiente. La rotación Día 1/Día 2 continúa desde donde quedó.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="secondary" size="sm" onClick={() => setShowEditDays(false)} className="flex-1">
+                Cancelar
+              </Button>
+              <Button size="sm" loading={savingDays} onClick={handleSaveDays} className="flex-1" disabled={editDays.length === 0}>
+                Guardar días
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Routine days breakdown */}
@@ -231,7 +324,7 @@ export function ActiveAssignmentCard({ assignment, progress, studentId, template
       )}
 
       {/* Footer actions */}
-      <div className="flex items-center gap-3 -mt-1 flex-wrap">
+      <div className="flex items-center gap-2 -mt-1 flex-wrap">
         <Button
           variant="ghost" size="sm"
           loading={regenerating}
@@ -241,7 +334,18 @@ export function ActiveAssignmentCard({ assignment, progress, studentId, template
           <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
           </svg>
-          Regenerar sesiones
+          Regenerar
+        </Button>
+        <Button
+          variant="ghost" size="sm"
+          loading={cleaning}
+          onClick={handleCleanDuplicates}
+          className="text-blue-500 hover:text-blue-700 hover:bg-blue-50 flex items-center gap-1.5"
+        >
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Limpiar duplicados
         </Button>
         <Button
           variant="ghost" size="sm"

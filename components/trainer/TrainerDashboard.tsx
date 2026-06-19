@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { TrainerOnboardingModal } from "@/components/trainer/TrainerOnboardingModal";
+import { StudentListItem } from "@/components/trainer/StudentListItem";
 import type { Profile } from "@/lib/types";
 
 interface StudentWithStatus {
@@ -30,12 +31,6 @@ interface Props {
   showOnboarding?: boolean;
 }
 
-const STATUS_DOT: Record<StudentWithStatus["status"], string> = {
-  green: "bg-green-500",
-  yellow: "bg-yellow-400",
-  gray: "bg-gray-300",
-  red: "bg-red-500",
-};
 
 function statusSubline(s: StudentWithStatus): { text: string; className: string } {
   if (s.status === "green" && s.todaySessionName) {
@@ -191,21 +186,17 @@ export function TrainerDashboard({ profile, students, stats, activeStudents, sho
             {students.slice(0, 8).map(s => {
               const sub = statusSubline(s);
               return (
-                <Link key={s.id} href={`/dashboard/students/${s.id}`}>
-                  <Card padding="sm" className="flex items-center gap-3 hover:border-brand-200 transition-colors">
-                    <div className="h-9 w-9 rounded-full bg-brand-100 overflow-hidden flex items-center justify-center flex-shrink-0 relative">
-                      {s.avatar_url
-                        ? <img src={s.avatar_url} alt={s.full_name} className="h-full w-full object-cover" />
-                        : <span className="text-brand-600 text-sm font-bold">{s.full_name?.charAt(0).toUpperCase() ?? "?"}</span>}
-                      <span className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white ${STATUS_DOT[s.status]}`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{s.full_name}</p>
-                      <p className={`text-xs font-medium truncate ${sub.className}`}>{sub.text}</p>
-                    </div>
-                    <ChevronIcon />
-                  </Card>
-                </Link>
+                <StudentListItem
+                  key={s.id}
+                  student={{
+                    id: s.id,
+                    full_name: s.full_name,
+                    avatar_url: s.avatar_url,
+                    status: s.status,
+                    subText: sub.text,
+                    subClass: sub.className,
+                  }}
+                />
               );
             })}
           </div>

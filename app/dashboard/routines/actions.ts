@@ -157,7 +157,8 @@ export async function quickAssignAction(data: {
       .from("sessions")
       .update({ status: "cancelled" })
       .eq("assignment_id", oldAssignment.id)
-      .eq("status", "pending");
+      .in("status", ["pending", "active"])
+      .gte("scheduled_date", new Date().toISOString().split("T")[0]);
     await supabase
       .from("routine_assignments")
       .update({ status: "cancelled" })

@@ -120,6 +120,7 @@ export default async function CalendarPage({
     .from("sessions")
     .select("id, name, cycle_day, scheduled_date, status, is_deload, original_date, routine_day_name")
     .eq("assignment_id", assignment.id)
+    .neq("status", "cancelled")
     .order("scheduled_date");
 
   const allSessions = sessions ?? [];

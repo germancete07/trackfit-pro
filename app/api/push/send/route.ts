@@ -79,11 +79,9 @@ export async function POST(req: NextRequest) {
   if (!subs || subs.length === 0) return NextResponse.json({ ok: true });
 
   const title = typeToTitle(type);
-  // Explicit UTF-8 Buffer avoids encoding ambiguity in web-push for Spanish characters
-  const payload = Buffer.from(
-    JSON.stringify({ title, body: message, url: urlForType(type, reference_id) }),
-    "utf8"
-  );
+  // Pass JSON string directly — web-push handles UTF-8 encoding internally.
+  // Using Buffer.from(..., "utf8") caused double-encoding on some runtimes.
+  const payload = JSON.stringify({ title, body: message, url: urlForType(type, reference_id) });
 
   await Promise.allSettled(
     subs.map((sub) =>

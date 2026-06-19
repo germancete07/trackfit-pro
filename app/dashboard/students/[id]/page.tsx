@@ -13,6 +13,7 @@ import { MeasurementsForm } from "@/components/trainer/MeasurementsForm";
 import { ProgressPhotos } from "@/components/student/ProgressPhotos";
 import { ProgressView } from "@/components/student/ProgressView";
 import { TrainerLogSessionButton } from "@/components/trainer/TrainerLogSessionButton";
+import { TrainerManualSessionButton } from "@/components/trainer/TrainerManualSessionButton";
 import { cn } from "@/lib/utils";
 import type { Profile } from "@/lib/types";
 
@@ -158,6 +159,7 @@ export default async function StudentDetailPage({
   let rpeTrend: any[] = [];
   let exercises: { id: string; name: string }[] = [];
   let weightHistory: Record<string, { week: string; max_weight: number }[]> = {};
+  let loadHistory: Record<string, { week: string; weightKg: number; sets: number; muscleGroup: string | null }[]> = {};
   let attendanceStats: { total: number; completed: number; streak: number } | null = null;
 
   if (activeTab === "progreso") {
@@ -247,9 +249,12 @@ export default async function StudentDetailPage({
     exercises = Object.entries(exerciseMap).map(([name, id]) => ({ id, name }));
 
     const whMap: Record<string, Record<string, number>> = {};
+    const loadMap: Record<string, Record<string, { weight: number; sets: number; muscleGroup: string | null }>> = {};
     for (const l of recentLogs ?? []) {
-      const name = (l.exercises as any)?.name as string | undefined;
+      const ex = l.exercises as any;
+      const name = ex?.name as string | undefined;
       if (!name || !l.weight_kg) continue;
+      const muscleGroup: string | null = ex?.muscle_group ?? null;
       const d = new Date(l.logged_at);
       const dow = d.getDay();
       const monday = new Date(d);
@@ -257,11 +262,22 @@ export default async function StudentDetailPage({
       const key = monday.toISOString().split("T")[0];
       if (!whMap[name]) whMap[name] = {};
       whMap[name][key] = Math.max(whMap[name][key] ?? 0, l.weight_kg);
+      if (!loadMap[name]) loadMap[name] = {};
+      const existing = loadMap[name][key];
+      if (!existing || l.weight_kg > existing.weight) {
+        loadMap[name][key] = { weight: l.weight_kg, sets: l.completed_sets ?? 1, muscleGroup };
+      }
     }
     for (const [name, weeks] of Object.entries(whMap)) {
       weightHistory[name] = Object.entries(weeks)
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([week, max_weight]) => ({ week, max_weight }));
+    }
+    for (const [name, weeks] of Object.entries(loadMap)) {
+      loadHistory[name] = Object.entries(weeks)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .slice(-6)
+        .map(([week, data]) => ({ week, weightKg: data.weight, sets: data.sets, muscleGroup: data.muscleGroup }));
     }
 
     // Attendance & streak
@@ -512,6 +528,12 @@ export default async function StudentDetailPage({
 
             <TrainerLogSessionButton studentId={params.id} />
 
+            <TrainerManualSessionButton
+              studentId={params.id}
+              studentName={s.full_name ?? ""}
+              label="Registrar sesión manual"
+            />
+
             <ActiveAssignmentCard
               assignment={activeAssignment}
               progress={assignmentProgress}
@@ -586,6 +608,7 @@ export default async function StudentDetailPage({
               rpeTrend={rpeTrend}
               exercises={exercises}
               weightHistory={weightHistory}
+              loadHistory={loadHistory}
             />
           </>
         )}

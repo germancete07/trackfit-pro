@@ -170,6 +170,7 @@ export default async function DashboardPage() {
           pendingCorrections: pendingCorrections ?? 0,
         }}
         activeStudents={(students ?? []).length}
+        showOnboarding={profile.onboarding_completed !== true}
       />
     );
   }

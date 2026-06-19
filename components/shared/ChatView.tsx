@@ -6,6 +6,18 @@ import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import type { Message } from "@/lib/types";
 
+const DEFAULT_TEMPLATES = [
+  "¡Buen trabajo hoy! Seguí así.",
+  "¿Cómo te sentiste con la rutina de hoy?",
+  "Recordá entrenar mañana.",
+  "¿Pudiste completar todas las series?",
+  "Esta semana subimos las cargas, preparate.",
+  "Descansá bien hoy, mañana entrenamos fuerte.",
+  "¿Tenés alguna molestia o dolor que deba saber?",
+];
+
+const STORAGE_KEY = "trackfit_chat_templates";
+
 interface Props {
   initialMessages: Message[];
   currentUserId: string;
@@ -19,10 +31,55 @@ export function ChatView({ initialMessages, currentUserId, trainerId, studentId,
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [customTemplates, setCustomTemplates] = useState<string[]>([]);
+  const [newTemplate, setNewTemplate] = useState("");
+  const [addingTemplate, setAddingTemplate] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const templatePanelRef = useRef<HTMLDivElement>(null);
+  const isTrainer = currentUserId === trainerId;
   // Stable client instance — createClient() at component level re-creates it on every render,
   // making `supabase` an unstable dependency that breaks useCallback and useEffect deps.
   const supabase = useMemo(() => createClient(), []);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) setCustomTemplates(JSON.parse(saved));
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (!showTemplates) return;
+    function handleClick(e: MouseEvent) {
+      if (templatePanelRef.current && !templatePanelRef.current.contains(e.target as Node)) {
+        setShowTemplates(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showTemplates]);
+
+  function applyTemplate(t: string) {
+    setText(t);
+    setShowTemplates(false);
+  }
+
+  function saveCustomTemplate() {
+    const trimmed = newTemplate.trim();
+    if (!trimmed) return;
+    const updated = [...customTemplates, trimmed];
+    setCustomTemplates(updated);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch {}
+    setNewTemplate("");
+    setAddingTemplate(false);
+  }
+
+  function removeCustomTemplate(idx: number) {
+    const updated = customTemplates.filter((_, i) => i !== idx);
+    setCustomTemplates(updated);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch {}
+  }
 
   const markRead = useCallback(async () => {
     await supabase
@@ -108,7 +165,7 @@ export function ChatView({ initialMessages, currentUserId, trainerId, studentId,
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-10rem)]">
+    <div className="flex flex-col h-[calc(100vh-10rem)] relative">
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-1">
         {messages.length === 0 && (
@@ -160,11 +217,87 @@ export function ChatView({ initialMessages, currentUserId, trainerId, studentId,
         <div ref={bottomRef} />
       </div>
 
+      {/* Quick templates panel */}
+      {isTrainer && showTemplates && (
+        <div
+          ref={templatePanelRef}
+          className="absolute bottom-full left-0 right-0 z-20 mx-4 mb-2 bg-white dark:bg-[#2A2A40] border border-gray-100 dark:border-white/10 rounded-2xl shadow-lg overflow-hidden"
+        >
+          <div className="px-3 py-2 border-b border-gray-100 dark:border-white/10 flex items-center justify-between">
+            <span className="text-xs font-bold text-gray-700 dark:text-white/80">Mensajes rápidos</span>
+            <button
+              onClick={() => setShowTemplates(false)}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-white/60 text-sm"
+            >✕</button>
+          </div>
+          <div className="max-h-52 overflow-y-auto">
+            {[...DEFAULT_TEMPLATES, ...customTemplates].map((t, i) => (
+              <div key={i} className="flex items-center group">
+                <button
+                  onClick={() => applyTemplate(t)}
+                  className="flex-1 text-left px-3 py-2.5 text-sm text-gray-700 dark:text-white/80 hover:bg-brand-50 dark:hover:bg-brand-500/10 transition-colors"
+                >
+                  {t}
+                </button>
+                {i >= DEFAULT_TEMPLATES.length && (
+                  <button
+                    onClick={() => removeCustomTemplate(i - DEFAULT_TEMPLATES.length)}
+                    className="pr-3 text-gray-300 dark:text-white/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                  >✕</button>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="border-t border-gray-100 dark:border-white/10 px-3 py-2">
+            {addingTemplate ? (
+              <div className="flex gap-2">
+                <input
+                  autoFocus
+                  value={newTemplate}
+                  onChange={e => setNewTemplate(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") saveCustomTemplate(); if (e.key === "Escape") setAddingTemplate(false); }}
+                  placeholder="Escribí tu mensaje..."
+                  className="flex-1 text-xs border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 bg-gray-50 dark:bg-white/5 text-gray-800 dark:text-white outline-none focus:ring-1 focus:ring-brand-500/50"
+                />
+                <button onClick={saveCustomTemplate} className="text-xs font-semibold text-brand-600 dark:text-brand-400 px-2">
+                  Guardar
+                </button>
+                <button onClick={() => { setAddingTemplate(false); setNewTemplate(""); }} className="text-xs text-gray-400 px-1">
+                  Cancelar
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setAddingTemplate(true)}
+                className="text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline"
+              >
+                + Agregar mensaje personalizado
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Input */}
       <form
         onSubmit={handleSend}
-        className="flex gap-2 px-4 py-3 border-t border-gray-100 dark:border-white/10 bg-white/80 dark:bg-[#1E1E2E]/90 backdrop-blur-sm"
+        className="relative flex gap-2 px-4 py-3 border-t border-gray-100 dark:border-white/10 bg-white/80 dark:bg-[#1E1E2E]/90 backdrop-blur-sm"
       >
+        {isTrainer && (
+          <button
+            type="button"
+            onClick={() => setShowTemplates(v => !v)}
+            title="Mensajes rápidos"
+            className={cn(
+              "h-11 w-11 flex-shrink-0 flex items-center justify-center rounded-xl border transition-colors text-base",
+              showTemplates
+                ? "border-brand-300 bg-brand-50 dark:bg-brand-500/20 text-brand-600 dark:text-brand-300"
+                : "border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/[0.08] text-gray-500 dark:text-white/50 hover:bg-gray-100 dark:hover:bg-white/15"
+            )}
+          >
+            ⚡
+          </button>
+        )}
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}

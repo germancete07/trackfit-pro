@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Card } from "@/components/ui/Card";
+import { LoadProgressTable, type LoadPoint } from "@/components/student/LoadProgressTable";
 
 interface PR {
   exercise_name: string;
@@ -38,6 +39,7 @@ interface Props {
   rpeTrend: RpeTrend[];
   exercises: ExerciseOption[];
   weightHistory: Record<string, WeightPoint[]>;
+  loadHistory?: Record<string, LoadPoint[]>;
 }
 
 function shortDate(s: string) {
@@ -134,102 +136,136 @@ function PRGroupedList({ prs }: { prs: PR[] }) {
   );
 }
 
-export function ProgressView({ prs, weeklyVolume, rpeTrend, exercises, weightHistory }: Props) {
+export function ProgressView({ prs, weeklyVolume, rpeTrend, exercises, weightHistory, loadHistory }: Props) {
   const [selectedExercise, setSelectedExercise] = useState(exercises[0]?.name ?? "");
+  const [view, setView] = useState<"tabla" | "graficos">("tabla");
 
   const maxVol = Math.max(...weeklyVolume.map((w) => w.volume), 1);
   const maxRpe = 10;
 
   const weightPoints = weightHistory[selectedExercise] ?? [];
+  const hasLoadData = loadHistory && Object.keys(loadHistory).length > 0;
 
   return (
     <div className="flex flex-col gap-4">
-      {/* PRs grouped by muscle_group */}
-      <Card padding="md">
-        <h2 className="text-sm font-bold text-gray-700 mb-3">Récords personales</h2>
-        {prs.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-4 text-center">
-            <p className="text-3xl">🏋️</p>
-            <p className="text-sm font-bold text-gray-600">Sin récords todavía</p>
-            <p className="text-xs text-gray-400">Completá tu primera rutina y tus récords aparecerán acá.</p>
-          </div>
-        ) : (
-          <PRGroupedList prs={prs} />
-        )}
-      </Card>
-
-      {/* Evolución de carga por ejercicio */}
-      <Card padding="md">
-        <div className="flex items-center justify-between gap-2 mb-3">
-          <h2 className="text-sm font-bold text-gray-700">Evolucion de carga</h2>
-          {exercises.length > 0 && (
-            <select
-              value={selectedExercise}
-              onChange={(e) => setSelectedExercise(e.target.value)}
-              className="text-xs font-semibold text-brand-600 bg-brand-50 border border-brand-100 rounded-lg px-2 py-1 outline-none max-w-[140px] truncate"
+      {/* View toggle */}
+      {hasLoadData && (
+        <div className="flex gap-1.5 p-1 bg-gray-100 dark:bg-white/10 rounded-xl w-fit">
+          {(["tabla", "graficos"] as const).map(v => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                view === v
+                  ? "bg-white dark:bg-[#2A2A40] text-gray-900 dark:text-white shadow-sm"
+                  : "text-gray-500 dark:text-white/50 hover:text-gray-700 dark:hover:text-white/70"
+              }`}
             >
-              {exercises.map((ex) => (
-                <option key={ex.id} value={ex.name}>{ex.name}</option>
-              ))}
-            </select>
-          )}
+              {v === "tabla" ? "Tabla de cargas" : "Gráficos"}
+            </button>
+          ))}
         </div>
-        {exercises.length === 0 ? (
-          <p className="text-xs text-gray-400 text-center py-2">Completá rutinas para ver tu evolución de carga.</p>
-        ) : weightPoints.length >= 2 ? (
-          <>
-            <LineChart points={weightPoints.map((p) => p.max_weight)} />
-            <div className="flex justify-between mt-1 text-[10px] text-gray-400">
-              {weightPoints.map((p, i) => (
-                <span key={i}>{shortDate(p.week)}</span>
-              ))}
-            </div>
-            <div className="flex justify-between mt-1 text-[10px] font-semibold text-brand-600">
-              <span>{weightPoints[0].max_weight} kg</span>
-              <span className={weightPoints[weightPoints.length - 1].max_weight >= weightPoints[0].max_weight ? "text-green-600" : "text-red-400"}>
-                {weightPoints[weightPoints.length - 1].max_weight} kg
-              </span>
-            </div>
-          </>
-        ) : (
-          <p className="text-xs text-gray-400">Se necesitan al menos 2 semanas de datos.</p>
-        )}
-      </Card>
+      )}
 
-      {/* Volumen semanal */}
-      <Card padding="md">
-        <h2 className="text-sm font-bold text-gray-700 mb-3">Volumen semanal (kg)</h2>
-        <BarChart
-          data={weeklyVolume.map((w) => ({ label: shortDate(w.week), value: w.volume }))}
-          maxValue={maxVol}
-        />
-        {weeklyVolume.length > 0 && (
-          <div className="flex justify-between mt-1.5 text-[10px] text-gray-400">
-            <span>0 kg</span>
-            <span>{maxVol.toLocaleString()} kg</span>
-          </div>
-        )}
-      </Card>
+      {/* Tabla de cargas */}
+      {view === "tabla" && hasLoadData && (
+        <Card padding="md">
+          <h2 className="text-sm font-bold text-gray-700 dark:text-white/80 mb-3">Progreso de cargas · últimas 6 semanas</h2>
+          <LoadProgressTable loadHistory={loadHistory!} />
+        </Card>
+      )}
 
-      {/* RPE promedio por sesión */}
-      <Card padding="md">
-        <h2 className="text-sm font-bold text-gray-700 mb-3">RPE promedio por sesion</h2>
-        {rpeTrend.length > 0 ? (
-          <>
+      {/* Gráficos view */}
+      {(view === "graficos" || !hasLoadData) && (
+        <>
+          {/* PRs grouped by muscle_group */}
+          <Card padding="md">
+            <h2 className="text-sm font-bold text-gray-700 mb-3">Récords personales</h2>
+            {prs.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-4 text-center">
+                <p className="text-3xl">🏋️</p>
+                <p className="text-sm font-bold text-gray-600">Sin récords todavía</p>
+                <p className="text-xs text-gray-400">Completá tu primera rutina y tus récords aparecerán acá.</p>
+              </div>
+            ) : (
+              <PRGroupedList prs={prs} />
+            )}
+          </Card>
+
+          {/* Evolución de carga por ejercicio */}
+          <Card padding="md">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <h2 className="text-sm font-bold text-gray-700">Evolucion de carga</h2>
+              {exercises.length > 0 && (
+                <select
+                  value={selectedExercise}
+                  onChange={(e) => setSelectedExercise(e.target.value)}
+                  className="text-xs font-semibold text-brand-600 bg-brand-50 border border-brand-100 rounded-lg px-2 py-1 outline-none max-w-[140px] truncate"
+                >
+                  {exercises.map((ex) => (
+                    <option key={ex.id} value={ex.name}>{ex.name}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+            {exercises.length === 0 ? (
+              <p className="text-xs text-gray-400 text-center py-2">Completá rutinas para ver tu evolución de carga.</p>
+            ) : weightPoints.length >= 2 ? (
+              <>
+                <LineChart points={weightPoints.map((p) => p.max_weight)} />
+                <div className="flex justify-between mt-1 text-[10px] text-gray-400">
+                  {weightPoints.map((p, i) => (
+                    <span key={i}>{shortDate(p.week)}</span>
+                  ))}
+                </div>
+                <div className="flex justify-between mt-1 text-[10px] font-semibold text-brand-600">
+                  <span>{weightPoints[0].max_weight} kg</span>
+                  <span className={weightPoints[weightPoints.length - 1].max_weight >= weightPoints[0].max_weight ? "text-green-600" : "text-red-400"}>
+                    {weightPoints[weightPoints.length - 1].max_weight} kg
+                  </span>
+                </div>
+              </>
+            ) : (
+              <p className="text-xs text-gray-400">Se necesitan al menos 2 semanas de datos.</p>
+            )}
+          </Card>
+
+          {/* Volumen semanal */}
+          <Card padding="md">
+            <h2 className="text-sm font-bold text-gray-700 mb-3">Volumen semanal (kg)</h2>
             <BarChart
-              data={rpeTrend.slice(-12).map((r) => ({ label: shortDate(r.date), value: r.avg_rpe }))}
-              maxValue={maxRpe}
-              color="bg-amber-400"
+              data={weeklyVolume.map((w) => ({ label: shortDate(w.week), value: w.volume }))}
+              maxValue={maxVol}
             />
-            <div className="flex justify-between mt-1.5 text-[10px] text-gray-400">
-              <span>RPE 0</span>
-              <span>RPE 10</span>
-            </div>
-          </>
-        ) : (
-          <p className="text-xs text-gray-400">Sin datos de sesiones completas.</p>
-        )}
-      </Card>
+            {weeklyVolume.length > 0 && (
+              <div className="flex justify-between mt-1.5 text-[10px] text-gray-400">
+                <span>0 kg</span>
+                <span>{maxVol.toLocaleString()} kg</span>
+              </div>
+            )}
+          </Card>
+
+          {/* RPE promedio por sesión */}
+          <Card padding="md">
+            <h2 className="text-sm font-bold text-gray-700 mb-3">RPE promedio por sesion</h2>
+            {rpeTrend.length > 0 ? (
+              <>
+                <BarChart
+                  data={rpeTrend.slice(-12).map((r) => ({ label: shortDate(r.date), value: r.avg_rpe }))}
+                  maxValue={maxRpe}
+                  color="bg-amber-400"
+                />
+                <div className="flex justify-between mt-1.5 text-[10px] text-gray-400">
+                  <span>RPE 0</span>
+                  <span>RPE 10</span>
+                </div>
+              </>
+            ) : (
+              <p className="text-xs text-gray-400">Sin datos de sesiones completas.</p>
+            )}
+          </Card>
+        </>
+      )}
     </div>
   );
 }

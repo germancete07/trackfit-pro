@@ -82,10 +82,34 @@ export interface ManualExerciseInput {
   sortOrder: number;
 }
 
+export async function getStudentActiveCyclesAction(studentId: string): Promise<
+  { id: string; name: string; start_date: string }[]
+> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data } = await supabase
+    .from("routine_assignments")
+    .select("id, start_date, session_templates(name)")
+    .eq("student_id", studentId)
+    .eq("trainer_id", user.id)
+    .eq("status", "active")
+    .order("start_date", { ascending: false })
+    .limit(10);
+
+  return (data ?? []).map((ra: any) => ({
+    id: ra.id,
+    name: (ra.session_templates as { name?: string } | null)?.name ?? "Ciclo activo",
+    start_date: ra.start_date,
+  }));
+}
+
 export async function trainerCreateManualSessionAction(
   studentId: string,
   date: string,
-  exercises: ManualExerciseInput[]
+  exercises: ManualExerciseInput[],
+  assignmentId?: string | null
 ): Promise<{ error?: string; success?: boolean }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -105,6 +129,14 @@ export async function trainerCreateManualSessionAction(
   const admin = createAdminClient();
   const now = new Date().toISOString();
 
+  // Cancel any pending session for this student+date to avoid unique constraint violation
+  await admin
+    .from("sessions")
+    .update({ status: "cancelled" })
+    .eq("student_id", studentId)
+    .eq("scheduled_date", date)
+    .eq("status", "pending");
+
   // 1. Create the session
   const { data: newSession, error: sessErr } = await admin
     .from("sessions")
@@ -117,6 +149,7 @@ export async function trainerCreateManualSessionAction(
       logged_by_trainer: true,
       is_manual: true,
       completed_at: now,
+      ...(assignmentId ? { assignment_id: assignmentId } : {}),
     })
     .select("id")
     .single();
@@ -187,4 +220,41 @@ export async function getStudentPendingSessionsAction(studentId: string) {
     ...s,
     exercises: (s.exercises ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order),
   }));
+}
+
+export async function getDayRoutineExercisesAction(studentId: string, date: string): Promise<{
+  sessionId: string | null;
+  sessionName: string | null;
+  exercises: { id: string; name: string; sets: number; reps: string; sort_order: number; library_exercise_id: string | null }[];
+}> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { sessionId: null, sessionName: null, exercises: [] };
+
+  const { data } = await supabase
+    .from("sessions")
+    .select("id, name, routine_day_name, exercises(id, name, sets, reps, sort_order, library_exercise_id)")
+    .eq("student_id", studentId)
+    .eq("trainer_id", user.id)
+    .eq("scheduled_date", date)
+    .eq("status", "pending")
+    .limit(1)
+    .maybeSingle();
+
+  if (!data) return { sessionId: null, sessionName: null, exercises: [] };
+
+  return {
+    sessionId: data.id,
+    sessionName: (data as any).routine_day_name ?? data.name ?? null,
+    exercises: ((data as any).exercises ?? [])
+      .sort((a: any, b: any) => a.sort_order - b.sort_order)
+      .map((ex: any) => ({
+        id: ex.id,
+        name: ex.name,
+        sets: ex.sets ?? 3,
+        reps: String(ex.reps ?? "8"),
+        sort_order: ex.sort_order,
+        library_exercise_id: ex.library_exercise_id ?? null,
+      })),
+  };
 }

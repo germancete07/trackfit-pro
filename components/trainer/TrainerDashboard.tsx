@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { TrainerOnboardingModal } from "@/components/trainer/TrainerOnboardingModal";
-import { StudentListItem } from "@/components/trainer/StudentListItem";
+import { ActiveStudentList } from "@/components/trainer/ActiveStudentList";
 import type { Profile } from "@/lib/types";
 
 interface StudentWithStatus {
@@ -182,24 +182,19 @@ export function TrainerDashboard({ profile, students, stats, activeStudents, sho
             <h2 className="text-base font-bold text-gray-900">Alumnos hoy</h2>
             <Link href="/dashboard/students" className="text-xs text-brand-500 font-medium">Ver todos</Link>
           </div>
-          <div className="flex flex-col gap-2">
-            {students.slice(0, 8).map(s => {
+          <ActiveStudentList
+            students={students.slice(0, 8).map(s => {
               const sub = statusSubline(s);
-              return (
-                <StudentListItem
-                  key={s.id}
-                  student={{
-                    id: s.id,
-                    full_name: s.full_name,
-                    avatar_url: s.avatar_url,
-                    status: s.status,
-                    subText: sub.text,
-                    subClass: sub.className,
-                  }}
-                />
-              );
+              return {
+                id: s.id,
+                full_name: s.full_name,
+                avatar_url: s.avatar_url,
+                status: s.status,
+                subText: sub.text,
+                subClass: sub.className,
+              };
             })}
-          </div>
+          />
         </section>
       )}
 

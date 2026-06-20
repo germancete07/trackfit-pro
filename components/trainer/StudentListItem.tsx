@@ -26,17 +26,21 @@ const STATUS_DOT: Record<StudentData["status"], string> = {
 export function StudentListItem({ student }: { student: StudentData }) {
   const router = useRouter();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
-  const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const [showManual, setShowManual] = useState(false);
 
   const openMenu = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setMenuPos({
-      top: rect.bottom + 4,
-      right: window.innerWidth - rect.right,
-    });
+    const menuWidth = 200;
+    const menuHeight = 220;
+    let top = rect.bottom + 4;
+    let left = rect.right - menuWidth;
+    if (top + menuHeight > window.innerHeight) top = rect.top - menuHeight - 4;
+    if (left < 0) left = 0;
+    if (left + menuWidth > window.innerWidth) left = window.innerWidth - menuWidth - 8;
+    setMenuPos({ top, left });
     setActiveMenu(activeMenu === student.id ? null : student.id);
   };
 
@@ -84,7 +88,7 @@ export function StudentListItem({ student }: { student: StudentData }) {
           <div style={{
             position: "fixed",
             top: menuPos.top,
-            right: menuPos.right,
+            left: menuPos.left,
             zIndex: 9999,
             background: "white",
             borderRadius: "10px",

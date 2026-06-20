@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { TrainerManualSessionModal } from "./TrainerManualSessionModal";
 import { archiveStudentAction } from "@/app/dashboard/students/actions";
+import { calcFixedMenuPos } from "@/lib/useFixedMenu";
 
 interface StudentRow {
   id: string;
@@ -33,14 +34,7 @@ export function ActiveStudentList({ students }: { students: StudentRow[] }) {
     e.stopPropagation();
     e.preventDefault();
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const menuWidth = 200;
-    const menuHeight = 220;
-    let top = rect.bottom + 4;
-    let left = rect.right - menuWidth;
-    if (top + menuHeight > window.innerHeight) top = rect.top - menuHeight - 4;
-    if (left < 0) left = 0;
-    if (left + menuWidth > window.innerWidth) left = window.innerWidth - menuWidth - 8;
-    setMenuPos({ top, left });
+    setMenuPos(calcFixedMenuPos(rect, 200, 250));
     setActiveMenu(activeMenu === studentId ? null : studentId);
   };
 

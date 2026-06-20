@@ -427,7 +427,11 @@ export function TrainerCalendar({ sessions, currentMonth, today, initialView = "
                           e.stopPropagation();
                           e.preventDefault();
                           const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                          setMenuPos({ top: r.bottom + 4, left: Math.max(8, r.right - 200) });
+                          const mw = 200; const mh = 130;
+                          setMenuPos({
+                            top: window.innerHeight - r.bottom < mh + 8 ? r.top - mh - 4 : r.bottom + 4,
+                            left: Math.min(Math.max(8, r.right - mw), window.innerWidth - mw - 8),
+                          });
                           setOpenMenuId(openMenuId === s.id ? null : s.id);
                         }}
                         className="h-8 w-8 flex-shrink-0 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"

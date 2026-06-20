@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { TrainerManualSessionModal } from "./TrainerManualSessionModal";
 import { archiveStudentAction } from "@/app/dashboard/students/actions";
-import { calcFixedMenuPos } from "@/lib/useFixedMenu";
 
 interface StudentRow {
   id: string;
@@ -28,14 +28,23 @@ export function ActiveStudentList({ students }: { students: StudentRow[] }) {
   const router = useRouter();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
-  const [showManual, setShowManual] = useState<string | null>(null); // studentId
+  const [showManual, setShowManual] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   const openMenu = (e: React.MouseEvent, studentId: string) => {
     e.stopPropagation();
     e.preventDefault();
+    if (activeMenu === studentId) { setActiveMenu(null); return; }
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setMenuPos(calcFixedMenuPos(rect, 200, 250));
-    setActiveMenu(activeMenu === studentId ? null : studentId);
+    const menuWidth = 200;
+    const menuHeight = 250;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const top = spaceBelow < menuHeight + 8 ? rect.top - menuHeight - 4 : rect.bottom + 4;
+    const left = Math.min(Math.max(8, rect.right - menuWidth), window.innerWidth - menuWidth - 8);
+    setMenuPos({ top, left });
+    setActiveMenu(studentId);
   };
 
   async function handleArchive(studentId: string, name: string) {
@@ -46,6 +55,50 @@ export function ActiveStudentList({ students }: { students: StudentRow[] }) {
   }
 
   const manualStudent = students.find(s => s.id === showManual);
+
+  const menu = activeMenu && mounted ? createPortal(
+    <>
+      <div
+        onClick={() => setActiveMenu(null)}
+        style={{ position: "fixed", inset: 0, zIndex: 99998 }}
+      />
+      <div style={{
+        position: "fixed",
+        top: menuPos.top,
+        left: menuPos.left,
+        zIndex: 99999,
+        background: "white",
+        borderRadius: "12px",
+        border: "1px solid #e5e7eb",
+        boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
+        minWidth: "200px",
+        overflow: "hidden",
+      }}>
+        <div style={{ padding: "10px 16px", cursor: "pointer", fontSize: 14, color: "#111827" }}
+          onClick={() => { router.push(`/dashboard/students/${activeMenu}`); setActiveMenu(null); }}>
+          👤 Ver perfil
+        </div>
+        <div style={{ padding: "10px 16px", cursor: "pointer", fontSize: 14, color: "#111827" }}
+          onClick={() => { setShowManual(activeMenu); setActiveMenu(null); }}>
+          📋 Registrar sesión
+        </div>
+        <div style={{ padding: "10px 16px", cursor: "pointer", fontSize: 14, color: "#111827" }}
+          onClick={() => { router.push(`/dashboard/chat?student=${activeMenu}`); setActiveMenu(null); }}>
+          💬 Enviar mensaje
+        </div>
+        <div style={{ padding: "10px 16px", cursor: "pointer", fontSize: 14, color: "#111827" }}
+          onClick={() => { router.push(`/dashboard/routines?assignTo=${activeMenu}`); setActiveMenu(null); }}>
+          📅 Asignar rutina
+        </div>
+        <div style={{ height: 1, background: "#f3f4f6", margin: "4px 0" }} />
+        <div style={{ padding: "10px 16px", cursor: "pointer", fontSize: 14, color: "#E24B4A" }}
+          onClick={() => handleArchive(activeMenu!, students.find(s => s.id === activeMenu)?.full_name ?? "")}>
+          🗃️ Archivar alumno
+        </div>
+      </div>
+    </>,
+    document.body
+  ) : null;
 
   return (
     <>
@@ -68,7 +121,11 @@ export function ActiveStudentList({ students }: { students: StudentRow[] }) {
             </Link>
             <button
               onClick={(e) => openMenu(e, s.id)}
-              style={{ cursor: "pointer", background: "none", border: "none", padding: "8px", fontSize: "20px", lineHeight: 1, color: "#9ca3af" }}
+              style={{
+                cursor: "pointer", background: "none", border: "none",
+                padding: "8px", fontSize: "20px", lineHeight: 1,
+                color: "#9ca3af", touchAction: "manipulation",
+              }}
             >
               ⋮
             </button>
@@ -76,48 +133,7 @@ export function ActiveStudentList({ students }: { students: StudentRow[] }) {
         ))}
       </div>
 
-      {activeMenu && (
-        <>
-          <div
-            onClick={() => setActiveMenu(null)}
-            style={{ position: "fixed", inset: 0, zIndex: 9998 }}
-          />
-          <div style={{
-            position: "fixed",
-            top: menuPos.top,
-            left: menuPos.left,
-            zIndex: 9999,
-            background: "white",
-            borderRadius: "10px",
-            border: "1px solid #e5e7eb",
-            boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
-            minWidth: "180px",
-            overflow: "hidden",
-          }}>
-            <div style={{ padding: "10px 16px", cursor: "pointer", fontSize: 14 }}
-              onClick={() => { router.push(`/dashboard/students/${activeMenu}`); setActiveMenu(null); }}>
-              👤 Ver perfil
-            </div>
-            <div style={{ padding: "10px 16px", cursor: "pointer", fontSize: 14 }}
-              onClick={() => { setShowManual(activeMenu); setActiveMenu(null); }}>
-              📋 Registrar sesión
-            </div>
-            <div style={{ padding: "10px 16px", cursor: "pointer", fontSize: 14 }}
-              onClick={() => { router.push(`/dashboard/chat?student=${activeMenu}`); setActiveMenu(null); }}>
-              💬 Enviar mensaje
-            </div>
-            <div style={{ padding: "10px 16px", cursor: "pointer", fontSize: 14 }}
-              onClick={() => { router.push(`/dashboard/routines?assignTo=${activeMenu}`); setActiveMenu(null); }}>
-              📅 Asignar rutina
-            </div>
-            <div style={{ height: 1, background: "#f3f4f6" }} />
-            <div style={{ padding: "10px 16px", cursor: "pointer", fontSize: 14, color: "#E24B4A" }}
-              onClick={() => handleArchive(activeMenu!, students.find(s => s.id === activeMenu)?.full_name ?? "")}>
-              🗃️ Archivar
-            </div>
-          </div>
-        </>
-      )}
+      {menu}
 
       {showManual && manualStudent && (
         <TrainerManualSessionModal

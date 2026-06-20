@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -123,22 +124,22 @@ interface MenuProps {
 }
 
 function SessionMenu({ session, date, top, left, onOpenManual, onClose }: MenuProps) {
-  return (
+  return createPortal(
     <>
       <div
         onClick={onClose}
-        style={{ position: "fixed", inset: 0, zIndex: 9998 }}
+        style={{ position: "fixed", inset: 0, zIndex: 99998 }}
       />
       <div style={{
         position: "fixed",
         top,
         left,
-        zIndex: 9999,
+        zIndex: 99999,
         background: "white",
-        borderRadius: "10px",
+        borderRadius: "12px",
         border: "1px solid #e5e7eb",
-        boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
-        minWidth: "180px",
+        boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
+        minWidth: "190px",
         overflow: "hidden",
       }}>
         <Link
@@ -162,7 +163,8 @@ function SessionMenu({ session, date, top, left, onOpenManual, onClose }: MenuPr
           ➕ Cargar sesión manual
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }
 

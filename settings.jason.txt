@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "cd \"/c/Users/German PC/trackfit-pro\" && if [ -n \"$(git status --porcelain)\" ]; then git add -A && msg=$(git diff --cached --name-only | head -4 | tr '\\n' ', ' | sed 's/, $//') && git commit -m \"auto: ${msg:-cambios}\" && git push && echo '{\"systemMessage\": \"✅ Pusheado a GitHub\"}'; fi",
+            "timeout": 30,
+            "statusMessage": "Commiteando y pusheando..."
+          }
+        ]
+      }
+    ]
+  }
+}
